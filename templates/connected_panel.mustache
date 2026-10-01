@@ -1,0 +1,90 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template block_learnboard/connected_panel
+
+    Shown on "Connect to LearnBoard" once the site is connected: where the
+    dashboards are, how to put them in a menu, and the dashboard the workspace
+    starts with.
+
+    Context variables required for this template:
+    * uniqid - Unique id for the link field.
+    * dashboardurl - This site's LearnBoard page.
+    * editurl - Where dashboards are created and edited, in LearnBoard.
+    * menuhint - How to add the link to a menu on this Moodle version.
+
+    Example context (json):
+    {
+        "uniqid": "lb123",
+        "dashboardurl": "https://moodle.example.edu/blocks/learnboard/index.php",
+        "editurl": "https://learnboard.learnoow.com/dashboards",
+        "menuhint": "LearnBoard is already in the top menu."
+    }
+}}
+<div class="block_learnboard-connected" role="region" aria-labelledby="{{uniqid}}-title">
+    <div class="block_learnboard-connected__head">
+        <span class="block_learnboard-connected__medallion block_learnboard-connected__medallion--done">
+            {{#pix}} i/checked, core {{/pix}}
+        </span>
+        <div>
+            <p class="block_learnboard-connected__eyebrow">{{#str}} connectedeyebrow, block_learnboard {{/str}}</p>
+            <div class="block_learnboard-connected__title" id="{{uniqid}}-title" role="heading" aria-level="3">{{#str}} connectedtitle, block_learnboard {{/str}}</div>
+            <p class="block_learnboard-connected__lede">{{#str}} connectedlede, block_learnboard {{/str}}</p>
+        </div>
+    </div>
+
+    <div class="block_learnboard-connected__section">
+        <p class="block_learnboard-connected__label">
+            {{#pix}} i/dashboard, core {{/pix}} {{#str}} connectedlinklabel, block_learnboard {{/str}}
+        </p>
+        <div class="block_learnboard-connected__linkrow">
+            <input type="text" readonly class="form-control block_learnboard-connected__link" id="{{uniqid}}-link"
+                value="{{dashboardurl}}" aria-label="{{#str}} connectedlinklabel, block_learnboard {{/str}}">
+            <a class="btn block_learnboard-connected__primary" href="{{dashboardurl}}" target="_blank" rel="noopener">
+                {{#str}} connectedopen, block_learnboard {{/str}} {{#pix}} i/externallink, core {{/pix}}
+            </a>
+            <button type="button" class="btn block_learnboard-connected__secondary"
+                data-action="copytoclipboard" data-clipboard-target="#{{uniqid}}-link"
+                data-clipboard-success-message="{{#str}} connectedcopied, block_learnboard {{/str}}">
+                {{#pix}} t/copy, core {{/pix}} {{#str}} connectedcopy, block_learnboard {{/str}}
+            </button>
+        </div>
+    </div>
+
+    <div class="block_learnboard-connected__tiles">
+        <div class="block_learnboard-connected__tile">
+            <span class="block_learnboard-connected__medallion">{{#pix}} i/menubars, core {{/pix}}</span>
+            <div>
+                <div class="block_learnboard-connected__tiletitle" role="heading" aria-level="4">{{#str}} connectedmenutitle, block_learnboard {{/str}}</div>
+                <p class="block_learnboard-connected__tiletext">{{menuhint}}</p>
+            </div>
+        </div>
+        <div class="block_learnboard-connected__tile">
+            <span class="block_learnboard-connected__medallion">{{#pix}} i/report, core {{/pix}}</span>
+            <div>
+                <div class="block_learnboard-connected__tiletitle" role="heading" aria-level="4">{{#str}} connectedstarttitle, block_learnboard {{/str}}</div>
+                <p class="block_learnboard-connected__tiletext">{{#str}} connectedstarttext, block_learnboard {{/str}}</p>
+                <a class="block_learnboard-connected__textlink" href="{{editurl}}" target="_blank" rel="noopener">
+                    {{#str}} connectededit, block_learnboard {{/str}} {{#pix}} i/externallink, core {{/pix}}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{{#js}}
+require(['core/copy_to_clipboard']);
+{{/js}}

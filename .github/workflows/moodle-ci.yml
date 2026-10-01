@@ -1,0 +1,122 @@
+# Moodle's own checks, on every supported version.
+#
+# The plugins directory reviews submissions by hand, and the first thing a
+# reviewer looks for is a green run of moodle-plugin-ci: it is Moodle's code
+# checker, its PHPUnit runner and its Behat runner in one, against a real
+# install of each version claimed in version.php. A submission without it is
+# a reviewer reading the plugin by eye, and a rejection costs weeks in a queue.
+#
+# The matrix is exactly the range version.php declares ($plugin->supported =
+# [400, 502]). Adding a version here without adding it there, or the reverse,
+# is how a plugin comes to claim support it has never run.
+name: Moodle plugin CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        # Moodle 5.2 requires PostgreSQL 16; the older branches accept it too.
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready" --health-interval=10s
+          --health-timeout=5s --health-retries=3
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Oldest supported, on the oldest PHP the plugin supports (8.0).
+          - moodle-branch: MOODLE_400_STABLE
+            php: '8.0'
+          - moodle-branch: MOODLE_405_STABLE
+            php: '8.1'
+          - moodle-branch: MOODLE_500_STABLE
+            php: '8.2'
+          # Newest supported.
+          - moodle-branch: MOODLE_502_STABLE
+            php: '8.3'
+
+    steps:
+      - name: Check out the plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pgsql, zip, gd, soap, intl
+          ini-values: max_input_vars=5000
+          coverage: none
+
+      - name: Install moodle-plugin-ci
+        run: |
+          composer create-project -n --no-dev --prefer-dist \
+            moodlehq/moodle-plugin-ci ci ^4
+          echo $(cd ci/bin; pwd) >> $GITHUB_PATH
+          echo $(cd ci/vendor/bin; pwd) >> $GITHUB_PATH
+          sudo locale-gen en_AU.UTF-8
+
+      - name: Install Moodle ${{ matrix.moodle-branch }}
+        run: |
+          moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
+        env:
+          DB: pgsql
+          MOODLE_BRANCH: ${{ matrix.moodle-branch }}
+
+      # Each check runs even when an earlier one failed: one run should report
+      # every problem, not the first one.
+      - name: PHP lint
+        if: ${{ always() }}
+        run: moodle-plugin-ci phplint
+
+      - name: PHP mess detector
+        if: ${{ always() }}
+        continue-on-error: true
+        run: moodle-plugin-ci phpmd
+
+      - name: Moodle code checker
+        if: ${{ always() }}
+        # Warnings are reported, not failed: the remaining ones are long lines
+        # of SQL-checking code and the MySQL backticks it has to recognise.
+        run: moodle-plugin-ci phpcs
+
+      - name: Moodle PHPDoc checker
+        if: ${{ always() }}
+        run: moodle-plugin-ci phpdoc --max-warnings 0
+
+      - name: Validate
+        if: ${{ always() }}
+        run: moodle-plugin-ci validate
+
+      - name: Check upgrade savepoints
+        if: ${{ always() }}
+        run: moodle-plugin-ci savepoints
+
+      - name: Grunt
+        if: ${{ always() }}
+        run: moodle-plugin-ci grunt --max-lint-warnings 0
+
+      - name: PHPUnit tests
+        if: ${{ always() }}
+        run: moodle-plugin-ci phpunit --fail-on-warning
+
+      - name: Behat features
+        if: ${{ always() }}
+        run: moodle-plugin-ci behat --profile chrome
+
