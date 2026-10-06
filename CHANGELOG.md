@@ -4,6 +4,14 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.12] - 2026-10-06
+
+### Changed
+- Supports Moodle 5.3. Tested on a Moodle 5.2 site upgraded to 5.3.0: the
+  block, the LearnBoard page and the data connector work unchanged, and every
+  LearnBoard screen reads the upgraded site without an error. Moodle 4.0 to
+  5.3 in all. No code changes were needed.
+
 ## [1.1.11] - 2026-09-30
 
 First public release.

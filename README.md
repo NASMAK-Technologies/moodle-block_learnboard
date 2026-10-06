@@ -25,7 +25,7 @@ more than their Moodle role allows.
 
 ## Requirements
 
-- Moodle 4.0 to 5.2
+- Moodle 4.0 to 5.3
 - PHP 7.3 or later, within the range your Moodle version supports
 - The automatic main-menu entry needs Moodle 4.3 or later (see *The menu entry*)
 - A LearnBoard workspace. The free plan is all this plugin needs: https://www.learnoow.com/moodle-plugin
@@ -60,7 +60,7 @@ the main menu depends on the Moodle version:
 
 | Moodle version | Main-menu entry |
 | --- | --- |
-| 4.3 to 5.2 | Added automatically for people allowed to see LearnBoard at site level. Turn it off with *Show LearnBoard in the main menu*. |
+| 4.3 to 5.3 | Added automatically for people allowed to see LearnBoard at site level. Turn it off with *Show LearnBoard in the main menu*. |
 | 4.0 to 4.2 | Not added automatically. Add `LearnBoard\|/blocks/learnboard/index.php` to *Custom menu items* under *Site administration > Appearance*. |
 
 Some themes draw their own navigation and choose its items themselves. On

@@ -7,7 +7,7 @@
 # a reviewer reading the plugin by eye, and a rejection costs weeks in a queue.
 #
 # The matrix is exactly the range version.php declares ($plugin->supported =
-# [400, 502]). Adding a version here without adding it there, or the reverse,
+# [400, 503]). Adding a version here without adding it there, or the reverse,
 # is how a plugin comes to claim support it has never run.
 name: Moodle plugin CI
 
@@ -23,8 +23,8 @@ jobs:
 
     services:
       postgres:
-        # Moodle 5.2 requires PostgreSQL 16; the older branches accept it too.
-        image: postgres:16
+        # Moodle 5.3 requires PostgreSQL 17; 5.2 and the older branches run on 16.
+        image: postgres:${{ matrix.postgres }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -42,13 +42,20 @@ jobs:
           # Oldest supported, on the oldest PHP the plugin supports (8.0).
           - moodle-branch: MOODLE_400_STABLE
             php: '8.0'
+            postgres: '16'
           - moodle-branch: MOODLE_405_STABLE
             php: '8.1'
+            postgres: '16'
           - moodle-branch: MOODLE_500_STABLE
             php: '8.2'
-          # Newest supported.
+            postgres: '16'
           - moodle-branch: MOODLE_502_STABLE
             php: '8.3'
+            postgres: '16'
+          # Newest supported.
+          - moodle-branch: MOODLE_503_STABLE
+            php: '8.4'
+            postgres: '17'
 
     steps:
       - name: Check out the plugin
