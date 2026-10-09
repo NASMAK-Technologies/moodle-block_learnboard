@@ -122,7 +122,16 @@ class client {
             return false;
         }
 
-        return ssouser::enabled() || has_capability('block/learnboard:view', $context);
+        if (ssouser::enabled()) {
+            return true;
+        }
+
+        // The shared reader sees every learner in the workspace, so it goes
+        // only to people who may see LearnBoard across the whole site (1.1.13).
+        // A teacher holds the capability in their own courses only; before
+        // this, that was enough to be handed every course and every company.
+        // Turn on per-user sign-in and they see their own groups instead.
+        return has_capability('block/learnboard:view', \context_system::instance());
     }
 
     /**

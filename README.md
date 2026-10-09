@@ -115,6 +115,19 @@ the site administrator can see exactly what was asked and when.
    mirror one you built in LearnBoard, or build a layout in the block itself.
    A dashboard appears in the list when, in LearnBoard, it is shared with
    **Moodle Embed (read-only)** or published to the whole workspace.
+4. To give each role its own view, use **What each role sees**: for example
+   company managers see **My team**, students see **My learning**, and
+   managers see a dashboard. The first rule whose role the viewer holds
+   applies.
+
+### Who sees what
+
+- **My team** shows a teacher or company manager only the people in their
+  own groups, in the courses they lead, as Moodle's separate groups would.
+- **My learning** shows a learner their own progress.
+- Both read as the person viewing, so they need per-user sign-in.
+- Without per-user sign-in, workspace-wide charts are shown only to people
+  who may see LearnBoard across the whole site, never to a course teacher.
 
 ## Privacy
 

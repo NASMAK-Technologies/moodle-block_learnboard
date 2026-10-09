@@ -174,14 +174,29 @@ class block_learnboard extends block_base {
     }
 
     /**
-     * Whether the current viewer belongs to the block's configured audience
-     * (by role archetype in this context). 'all' and site admins always match.
+     * Whether the current viewer belongs to the block's configured audience.
+     *
+     * Roles chosen in the settings (1.1.13) match when the viewer holds any of
+     * them anywhere on the site, so a block on the Dashboard reaches a company
+     * manager whose role sits in their courses. A block set up before then
+     * kept one archetype, matched in this context as it always was.
      */
     private function viewer_matches_audience(): bool {
         global $USER, $DB;
 
+        if (is_siteadmin()) {
+            return true;
+        }
+
+        $chosen = isset($this->config->audienceroles) && is_array($this->config->audienceroles)
+            ? array_values(array_filter(array_map('strval', $this->config->audienceroles)))
+            : [];
+        if ($chosen !== []) {
+            return self::holds_any_role($USER->id, $chosen);
+        }
+
         $audience = isset($this->config->audience) ? (string) $this->config->audience : 'all';
-        if ($audience === '' || $audience === 'all' || is_siteadmin()) {
+        if ($audience === '' || $audience === 'all') {
             return true;
         }
 
@@ -193,6 +208,56 @@ class block_learnboard extends block_base {
         }
 
         return false;
+    }
+
+    /**
+     * The per-role rule that applies to the viewer: the first whose role they
+     * hold anywhere on the site. Null when none applies.
+     *
+     * @return array{view: string, dashboardid: int}|null
+     */
+    private function matching_rule(): ?array {
+        global $USER;
+
+        $roles = isset($this->config->rulerole) && is_array($this->config->rulerole) ? $this->config->rulerole : [];
+        $views = isset($this->config->ruleview) && is_array($this->config->ruleview) ? $this->config->ruleview : [];
+        foreach ($roles as $i => $role) {
+            $role = (string) $role;
+            $view = isset($views[$i]) ? (string) $views[$i] : '';
+            if ($role === '' || $view === '' || !self::holds_any_role($USER->id, [$role])) {
+                continue;
+            }
+            if (strpos($view, 'dash:') === 0) {
+                return ['view' => 'linked', 'dashboardid' => (int) substr($view, 5)];
+            }
+
+            return ['view' => $view, 'dashboardid' => 0];
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the user holds any of the given roles (by shortname) anywhere.
+     *
+     * @param int $userid
+     * @param string[] $shortnames
+     * @return bool
+     */
+    private static function holds_any_role(int $userid, array $shortnames): bool {
+        global $DB;
+
+        if ($shortnames === []) {
+            return false;
+        }
+        [$in, $params] = $DB->get_in_or_equal($shortnames, SQL_PARAMS_NAMED);
+        $params['userid'] = $userid;
+
+        return $DB->record_exists_sql(
+            "SELECT 1 FROM {role_assignments} ra JOIN {role} r ON r.id = ra.roleid
+              WHERE ra.userid = :userid AND r.shortname $in",
+            $params
+        );
     }
 
     /**
@@ -220,8 +285,24 @@ class block_learnboard extends block_base {
         // Dashboard source (M7): a "linked" block mirrors a named LearnBoard
         // dashboard live + read-only; a "custom" block is arranged here in Moodle.
         $source = isset($this->config->source) ? (string) $this->config->source : 'custom';
+        $dashboardid = ($source === 'linked' && isset($this->config->dashboardid)) ? (int) $this->config->dashboardid : 0;
+
+        // Per-role rules (1.1.13) come first: a matching rule decides what this
+        // viewer sees, whatever the audience below says.
+        $rule = $this->matching_rule();
+        if ($rule !== null) {
+            if ($rule['view'] === 'hide') {
+                $this->content->text = '';
+
+                return $this->content;
+            }
+            $source = $rule['view'] === 'mylearning' ? 'mylearning' : $rule['view'];
+            $dashboardid = $rule['dashboardid'];
+        }
         $linked = $source === 'linked';
-        $dashboardid = ($linked && isset($this->config->dashboardid)) ? (int) $this->config->dashboardid : 0;
+        // My team and My learning read as the person viewing, so they need
+        // per-user sign-in.
+        $personal = in_array($source, ['team', 'mylearning'], true);
 
         // Authoring = page editing + capability. Only CUSTOM blocks are edited in
         // Moodle (linked ones are edited in LearnBoard), so the grid is editable
@@ -229,14 +310,14 @@ class block_learnboard extends block_base {
         // linked block even when the audience gate would hide it from end users.
         $authoring = $this->page->user_is_editing()
             && has_capability('block/learnboard:addinstance', $this->context);
-        $editable = !$linked && $authoring;
+        $editable = !$linked && !$personal && $authoring;
 
-        $layout = $linked ? ['items' => [], 'layouts' => new stdClass()] : $this->resolve_layout();
+        $layout = ($linked || $personal) ? ['items' => [], 'layouts' => new stdClass()] : $this->resolve_layout();
 
         // Audience gate (M5): if restricted to a role and the viewer neither
         // holds it nor is authoring, render nothing so the block hides — letting
         // a page carry a different LearnBoard dashboard per role.
-        if (!$authoring && !$this->viewer_matches_audience()) {
+        if ($rule === null && !$authoring && !$this->viewer_matches_audience()) {
             $this->content->text = '';
 
             return $this->content;
@@ -251,9 +332,19 @@ class block_learnboard extends block_base {
             return $this->content;
         }
 
+        // A personal view without per-user sign-in would read as the shared
+        // account, which has no team and no learning record of its own.
+        if ($personal && !\block_learnboard\ssouser::enabled()) {
+            $this->content->text = $authoring
+                ? html_writer::div(get_string('personalneedssso', 'block_learnboard'), 'learnboard-embed-notice')
+                : '';
+
+            return $this->content;
+        }
+
         // Custom block with nothing to show and the viewer can't author →
         // educational empty state.
-        if (!$linked && empty($layout['items']) && !$authoring) {
+        if (!$linked && !$personal && empty($layout['items']) && !$authoring) {
             $this->content->text = html_writer::div(
                 get_string('notconfiguredblock', 'block_learnboard'),
                 'learnboard-embed-notice'
@@ -315,6 +406,7 @@ class block_learnboard extends block_base {
             'layout' => $layout,
             'editable' => $editable,
             'dashboardId' => $dashboardid > 0 ? $dashboardid : null,
+            'view' => $source === 'team' ? 'team' : ($source === 'mylearning' ? 'my-learning' : null),
             'courseId' => $courseid,
             'blockId' => (int) $this->instance->id,
             'failText' => get_string('loadfailed', 'block_learnboard'),
@@ -456,6 +548,7 @@ class block_learnboard extends block_base {
     window.LearnBoard.mountDashboard(el, {
       layout: layout,
       dashboardId: cfg.dashboardId || undefined,
+      view: cfg.view || undefined,
       editable: !!cfg.editable,
       apiBase: cfg.apiBase,
       token: cfg.token,

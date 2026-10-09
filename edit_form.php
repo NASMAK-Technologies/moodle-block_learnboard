@@ -49,18 +49,15 @@ class block_learnboard_edit_form extends block_edit_form {
         $mform->setDefault('config_minheight', 320);
         $mform->addHelpButton('config_minheight', 'minheight', 'block_learnboard');
 
-        // Audience (M5): show this block's dashboard only to a given role, so a
-        // page can carry a per-role set of blocks (a Managers dashboard, a
-        // Teachers dashboard, …). Matched by role archetype in this context.
-        $mform->addElement('select', 'config_audience', get_string('audience', 'block_learnboard'), [
-            'all' => get_string('audience_all', 'block_learnboard'),
-            'manager' => get_string('audience_manager', 'block_learnboard'),
-            'editingteacher' => get_string('audience_editingteacher', 'block_learnboard'),
-            'teacher' => get_string('audience_teacher', 'block_learnboard'),
-            'student' => get_string('audience_student', 'block_learnboard'),
-        ]);
-        $mform->setDefault('config_audience', 'all');
-        $mform->addHelpButton('config_audience', 'audience', 'block_learnboard');
+        // Audience (M5): show this block's dashboard only to people holding one
+        // of the chosen roles. Any role on the site is offered, custom ones
+        // (such as a company manager role) included. Blocks set up before
+        // 1.1.13 kept a single archetype; that still applies until roles are
+        // chosen here.
+        $roles = self::site_roles();
+        $audience = $mform->addElement('select', 'config_audienceroles', get_string('audience', 'block_learnboard'), $roles);
+        $audience->setMultiple(true);
+        $mform->addHelpButton('config_audienceroles', 'audience', 'block_learnboard');
 
         // Dashboard source (M7). "Custom" = arrange charts here in Moodle (the
         // original behaviour). "Linked" = mirror a named LearnBoard dashboard
@@ -68,6 +65,8 @@ class block_learnboard_edit_form extends block_edit_form {
         $mform->addElement('select', 'config_source', get_string('source', 'block_learnboard'), [
             'custom' => get_string('source_custom', 'block_learnboard'),
             'linked' => get_string('source_linked', 'block_learnboard'),
+            'team' => get_string('source_team', 'block_learnboard'),
+            'mylearning' => get_string('source_mylearning', 'block_learnboard'),
         ]);
         $mform->setDefault('config_source', 'custom');
         $mform->addHelpButton('config_source', 'source', 'block_learnboard');
@@ -107,12 +106,64 @@ class block_learnboard_edit_form extends block_edit_form {
         $mform->addElement('select', 'config_kind', get_string('startercard', 'block_learnboard'), $options);
         $mform->setType('config_kind', PARAM_TEXT);
         $mform->addHelpButton('config_kind', 'startercard', 'block_learnboard');
-        $mform->hideIf('config_kind', 'config_source', 'eq', 'linked');
+        $mform->hideIf('config_kind', 'config_source', 'neq', 'custom');
 
         $mform->addElement('text', 'config_customkind', get_string('customkind', 'block_learnboard'));
         $mform->setType('config_customkind', PARAM_TEXT);
         $mform->addHelpButton('config_customkind', 'customkind', 'block_learnboard');
         $mform->hideIf('config_customkind', 'config_kind', 'neq', '__custom__');
-        $mform->hideIf('config_customkind', 'config_source', 'eq', 'linked');
+        $mform->hideIf('config_customkind', 'config_source', 'neq', 'custom');
+
+        // Per-role rules (1.1.13): one block, a different view for each role.
+        // The first rule whose role the viewer holds anywhere on the site
+        // decides what they see; nobody matching sees the block as set above.
+        $mform->addElement('header', 'rulesheader', get_string('rules', 'block_learnboard'));
+        $mform->addElement('static', 'rules_help', '', get_string('rules_desc', 'block_learnboard'));
+        $views = [
+            '' => get_string('rule_none', 'block_learnboard'),
+            'team' => get_string('source_team', 'block_learnboard'),
+            'mylearning' => get_string('source_mylearning', 'block_learnboard'),
+            'hide' => get_string('rule_hide', 'block_learnboard'),
+        ];
+        foreach ($dashboards as $id => $name) {
+            $views['dash:' . (int) $id] = get_string('rule_dashboard', 'block_learnboard', $name);
+        }
+        $roleoptions = ['' => get_string('rule_none', 'block_learnboard')] + $roles;
+        $group = [
+            $mform->createElement('select', 'config_rulerole', get_string('rule_role', 'block_learnboard'), $roleoptions),
+            $mform->createElement('select', 'config_ruleview', get_string('rule_view', 'block_learnboard'), $views),
+        ];
+        $existing = 0;
+        if (isset($this->block->config->rulerole) && is_array($this->block->config->rulerole)) {
+            $existing = count($this->block->config->rulerole);
+        }
+        $this->repeat_elements(
+            [$mform->createElement('group', 'rulegroup', get_string('rule', 'block_learnboard'), $group, ' ', false)],
+            max(3, $existing + 1),
+            [],
+            'rule_repeats',
+            'rule_add',
+            2,
+            get_string('rule_add', 'block_learnboard'),
+            true
+        );
+    }
+
+    /**
+     * Every role on the site that a person can hold, custom ones included,
+     * keyed by shortname.
+     *
+     * @return array<string, string>
+     */
+    public static function site_roles(): array {
+        $out = [];
+        foreach (role_get_names(\context_system::instance(), ROLENAME_ORIGINAL) as $role) {
+            if (in_array($role->archetype, ['guest', 'user', 'frontpage'], true)) {
+                continue;
+            }
+            $out[$role->shortname] = $role->localname;
+        }
+
+        return $out;
     }
 }

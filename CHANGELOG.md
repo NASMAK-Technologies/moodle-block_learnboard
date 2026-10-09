@@ -4,6 +4,29 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.13] - 2026-10-10
+
+### Added
+- Each role can see something different in one block. Under "What each role
+  sees", choose a role (custom roles such as a company manager role
+  included) and what they see: My team, My learning, a LearnBoard dashboard,
+  or nothing. The first rule whose role the viewer holds anywhere on the site
+  applies.
+- Two built-in views a block can show. My team: a teacher or company manager
+  sees only the people in their own groups, in the courses they lead, with
+  their progress, last visit, risk and completions. My learning: a learner
+  sees their own progress. Both need per-user sign-in.
+- "Show to" now lists every role on the site, custom roles included, and
+  matches a role held anywhere on the site, so a block on the Dashboard
+  reaches a company manager whose role sits in their courses.
+
+### Changed
+- Without per-user sign-in, the workspace-wide charts go only to people who
+  may see LearnBoard across the whole site (a site administrator or a
+  site-level manager). Before, a teacher holding the capability in their own
+  course was shown every course and every company. Turn on per-user sign-in
+  and teachers see their own groups instead.
+
 ## [1.1.12] - 2026-10-06
 
 ### Changed
