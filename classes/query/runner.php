@@ -137,8 +137,11 @@ class runner {
 
         // MySQL names the time limit in milliseconds, MariaDB in seconds; the
         // one the server does not know is refused and ignored.
-        foreach (['SET SESSION max_execution_time = ' . (self::MAX_SECONDS * 1000),
-                'SET SESSION max_statement_time = ' . self::MAX_SECONDS] as $limit) {
+        $limits = [
+            'SET SESSION max_execution_time = ' . (self::MAX_SECONDS * 1000),
+            'SET SESSION max_statement_time = ' . self::MAX_SECONDS,
+        ];
+        foreach ($limits as $limit) {
             try {
                 $this->db->execute($limit);
             } catch (\Throwable $e) {

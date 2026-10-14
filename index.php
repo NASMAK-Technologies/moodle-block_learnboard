@@ -48,8 +48,8 @@ if (!\block_learnboard\client::viewer_may_see($context)) {
 }
 
 if (!\block_learnboard\client::is_configured()) {
-    echo html_writer::div(get_string('notconfiguredsite', 'block_learnboard',
-    (new moodle_url('/admin/settings.php', ['section' => 'block_learnboard_connect']))->out(false)), 'alert alert-warning');
+    $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'block_learnboard_connect']);
+    echo html_writer::div(get_string('notconfiguredsite', 'block_learnboard', $settingsurl->out(false)), 'alert alert-warning');
     echo $OUTPUT->footer();
     exit;
 }

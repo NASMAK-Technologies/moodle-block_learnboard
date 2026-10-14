@@ -274,9 +274,9 @@ class block_learnboard extends block_base {
         $this->content->footer = '';
 
         if (!\block_learnboard\client::is_configured()) {
+            $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'block_learnboard_connect']);
             $this->content->text = html_writer::div(
-                get_string('notconfiguredsite', 'block_learnboard',
-                (new moodle_url('/admin/settings.php', ['section' => 'block_learnboard_connect']))->out(false)),
+                get_string('notconfiguredsite', 'block_learnboard', $settingsurl->out(false)),
                 'learnboard-embed-notice'
             );
 
