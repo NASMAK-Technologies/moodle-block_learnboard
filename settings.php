@@ -77,6 +77,15 @@ if ($ADMIN->fulltree) {
         get_string('insecuressl_desc', 'block_learnboard'),
         0
     ));
+    // Certificate checks off is for a development or on-premises install only.
+    // Said in plain sight while it is on, so it is not left on in production.
+    if ((int) get_config('block_learnboard', 'insecuressl') === 1) {
+        $settings->add(new admin_setting_heading(
+            'block_learnboard/insecuresslwarning',
+            '',
+            $OUTPUT->notification(get_string('insecuressl_warning', 'block_learnboard'), 'warning')
+        ));
+    }
 
     $settings->add(new admin_setting_configselect(
         'block_learnboard/theme',

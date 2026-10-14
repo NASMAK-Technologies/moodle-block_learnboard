@@ -44,28 +44,31 @@ function xmldb_block_learnboard_install() {
  * straight after installing could not tell that, so the defaults are saved
  * here and the next thing to do is paste the code. A value already set (by the
  * legacy copy above, or by config.php) is left alone.
+ *
+ * Written with set_config() for this plugin's own settings only. Building the
+ * admin tree to read the defaults from settings.php loads every plugin's
+ * settings and took half a minute; the defaults are listed here instead and
+ * must match settings.php.
  */
 function block_learnboard_apply_default_settings() {
-    global $CFG;
-    require_once($CFG->libdir . '/adminlib.php');
-
-    // The plugin list was read before this block was installed, earlier in the
-    // same request; without a fresh read its settings pages are not in the tree.
-    core_plugin_manager::reset_caches();
-    $root = admin_get_root(true, true);
-    foreach (['blocksettinglearnboard', 'block_learnboard_connect'] as $section) {
-        $page = $root->locate($section);
-        if (!$page instanceof admin_settingpage) {
-            continue;
-        }
-        foreach ($page->settings as $setting) {
-            if ($setting->get_setting() !== null) {
-                continue;
-            }
-            $default = $setting->get_defaultsetting();
-            if ($default !== null) {
-                $setting->write_setting($default);
-            }
+    $defaults = [
+        'apibase' => 'https://learnboard.learnoow.com/api/v1',
+        'embedkey' => '',
+        'tenant' => '',
+        'insecuressl' => 0,
+        'theme' => 'moodle',
+        'queryenabled' => 0,
+        'querykey' => '',
+        'queryallowedips' => '',
+        'maxconcurrent' => '8',
+        'querydbuser' => '',
+        'querydbpass' => '',
+        'ssoenabled' => 0,
+        'shownav' => 1,
+    ];
+    foreach ($defaults as $name => $value) {
+        if (get_config('block_learnboard', $name) === false) {
+            set_config($name, $value, 'block_learnboard');
         }
     }
 }

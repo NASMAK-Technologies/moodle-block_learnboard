@@ -4,6 +4,38 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.14] - 2026-10-14
+
+Changes from the Moodle plugins directory review.
+
+### Security
+- The data connector's query check now denies by default. Only the
+  reporting tables LearnBoard uses can be read; every other table, including
+  every table that holds configuration, sessions or credentials, is refused.
+  A FROM or JOIN the check cannot read completely is refused instead of
+  skipped, MySQL's TABLE and VALUES statements are refused anywhere, and every
+  identifier carrying the site's table prefix is checked wherever it appears.
+- Columns can no longer be renamed past the password and token checks: column
+  lists on WITH names and derived tables are refused, and so is SELECT *.
+
+### Changed
+- The data connector runs its queries through Moodle's DML API on a session
+  set read-only, using Moodle's own connection or the optional SELECT-only
+  database user. Its nonce, slot and log files use Moodle's directory
+  helpers, the signature is checked before any query connection is opened,
+  and the version it reports is read from version.php.
+- Token renewal and layout saving are Moodle web services
+  (block_learnboard_get_token, block_learnboard_save_layout) instead of the
+  ajax/ scripts, which are removed.
+- Requests to LearnBoard keep Moodle's HTTP security checks on. A LearnBoard
+  on a private network is allowed in Site administration > Security > HTTP
+  security. The settings page warns while "Allow self-signed SSL" is on.
+- Installing no longer builds the whole admin tree to store the defaults.
+
+### Fixed
+- The "not set up yet" notice pointed to Local plugins; it now links to
+  Plugins > Blocks > Connect to LearnBoard.
+
 ## [1.1.13] - 2026-10-10
 
 ### Added

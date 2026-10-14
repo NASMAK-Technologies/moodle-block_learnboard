@@ -44,8 +44,8 @@ namespace block_learnboard\query;
  * real learners is invisible from the outside. This is the site's own answer
  * and it wins.
  *
- * Counting is N lock files in the data directory, because the endpoint loads
- * config.php only and has no cache, no session and no Moodle API. A slot is
+ * Counting is N lock files in Moodle's temp directory, because the endpoint
+ * runs without a session and a lock must outlive nothing but the request. A slot is
  * held by an open file lock, so it is released when the process ends however
  * it ends, including a fatal error or a killed worker. Nothing is left behind
  * to leak.
@@ -73,8 +73,12 @@ class busy {
             return true;
         }
 
-        $dir = rtrim((string) $cfg->dataroot, '/\\') . '/temp/block_learnboard_slots';
-        if (!is_dir($dir) && !@mkdir($dir, 0770, true) && !is_dir($dir)) {
+        try {
+            $dir = make_temp_directory('block_learnboard_slots', false);
+        } catch (\Throwable $e) {
+            $dir = false;
+        }
+        if ($dir === false) {
             return true;
         }
 

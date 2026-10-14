@@ -48,7 +48,8 @@ if (!\block_learnboard\client::viewer_may_see($context)) {
 }
 
 if (!\block_learnboard\client::is_configured()) {
-    echo html_writer::div(get_string('notconfiguredsite', 'block_learnboard'), 'alert alert-warning');
+    echo html_writer::div(get_string('notconfiguredsite', 'block_learnboard',
+    (new moodle_url('/admin/settings.php', ['section' => 'block_learnboard_connect']))->out(false)), 'alert alert-warning');
     echo $OUTPUT->footer();
     exit;
 }
@@ -128,10 +129,15 @@ $config = [
     'token' => $tokendata['token'],
     // Renewed before it runs out, so a page left open keeps working.
     'tokenExpiresAt' => $tokendata['expires_at'] ?? null,
-    'tokenRefreshUrl' => (new moodle_url('/blocks/learnboard/ajax/token.php', [
-        'contextid' => $context->id,
-        'sesskey' => sesskey(),
-    ]))->out(false),
+    // Renewed before it runs out through the block_learnboard_get_token web service.
+    'tokenRefreshService' => [
+        'url' => (new moodle_url('/lib/ajax/service.php', [
+            'sesskey' => sesskey(),
+            'info' => 'block_learnboard_get_token',
+        ]))->out(false),
+        'methodname' => 'block_learnboard_get_token',
+        'args' => ['contextid' => (int) $context->id],
+    ],
     'tenantSlug' => \block_learnboard\client::tenant(),
     'theme' => \block_learnboard\client::theme(),
     'dashboardId' => $dashboardid,
@@ -186,7 +192,7 @@ $js = <<<JS
       apiBase: cfg.apiBase,
       token: cfg.token,
       tokenExpiresAt: cfg.tokenExpiresAt,
-      tokenRefreshUrl: cfg.tokenRefreshUrl,
+      tokenRefreshService: cfg.tokenRefreshService,
       tenantSlug: cfg.tenantSlug,
       theme: resolveTheme(),
       styles: { css: css, tokens: '' },

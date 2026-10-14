@@ -96,7 +96,7 @@ $string['choosedashboard'] = 'Choose a dashboard…';
 $string['nodashboards'] = 'No shared dashboards found. In LearnBoard, open the dashboard, click Share, and either publish it to everyone in the workspace or add "Moodle Embed (read-only)" under Share with people. Then reopen these settings.';
 $string['notlinked'] = 'This block is set to "Linked" but no LearnBoard dashboard is chosen yet. Turn editing on and pick one in the block settings.';
 
-$string['notconfiguredsite'] = 'The LearnBoard connection is not set up yet. A site administrator must configure Site administration → Plugins → Local plugins → LearnBoard integration.';
+$string['notconfiguredsite'] = 'The LearnBoard connection is not set up yet. A site administrator connects it under Site administration → Plugins → Blocks → <a href="{$a}">Connect to LearnBoard</a>.';
 $string['notconfiguredblock'] = 'This block has no chart selected yet. Turn editing on and choose a chart in the block settings.';
 $string['tokenfailed'] = 'Could not connect to LearnBoard. Check the API base URL, embed key and tenant slug in the LearnBoard integration settings.';
 
@@ -133,7 +133,8 @@ $string['embedkey_desc'] = 'The Moodle plugin key of your LearnBoard workspace. 
 $string['tenant'] = 'LearnBoard tenant slug';
 $string['tenant_desc'] = 'The LearnBoard tenant this Moodle site maps to (for example moodle52-verify). Its data source should point at the same Moodle database this site uses.';
 $string['insecuressl'] = 'Allow self-signed SSL (dev / on-prem)';
-$string['insecuressl_desc'] = 'When the LearnBoard API uses a self-signed or private-CA certificate (common in local development and on-premise installs), enable this so Moodle can mint tokens. Leave OFF for any internet-facing LearnBoard with a trusted certificate.';
+$string['insecuressl_desc'] = 'For a development or on-premises LearnBoard with a self-signed or private-CA certificate only. It turns off certificate checks on requests to LearnBoard. Leave it off for any LearnBoard on the internet. If LearnBoard is on a private network, also allow its address in Site administration > Security > HTTP security.';
+$string['insecuressl_warning'] = 'Certificate checks on requests to LearnBoard are turned off. Turn "Allow self-signed SSL" off unless this is a development or on-premises install.';
 $string['theme'] = 'Theme';
 $string['theme_desc'] = 'Colour theme for embedded charts. "Follow the LMS" tracks this Moodle site\'s light/dark mode live, so the charts switch when the user toggles the LMS theme.';
 $string['theme_moodle'] = 'Follow the LMS (light / dark)';

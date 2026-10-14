@@ -36,28 +36,22 @@
  *
  * Checked in this order, cheapest first: HTTPS, method, size, header shape,
  * clock; then the settings, the caller's address, the signature and the nonce;
- * then every statement (classes/query/validator.php) on a session proven to be
- * read-only (classes/query/runner.php). Every request is written to
- * {dataroot}/block_learnboard/query-audit.log.
+ * only then is a query run, each statement checked first
+ * (classes/query/validator.php) and run through Moodle's DML API on a session
+ * proven to be read-only (classes/query/runner.php). Every request is written
+ * to {dataroot}/block_learnboard/query-audit.log.
  *
  * @package    block_learnboard
  * @copyright  2026 NASMAK Technologies <info@nasmak.com.au>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define('ABORT_AFTER_CONFIG', true);
 define('NO_DEBUG_DISPLAY', true);
 define('NO_MOODLE_COOKIES', true);
 
+// Authenticated by the signed request below, not by a Moodle login.
+// phpcs:ignore moodle.Files.RequireLogin.Missing
 require(__DIR__ . '/../../config.php');
-if (!defined('MOODLE_INTERNAL')) {
-    define('MOODLE_INTERNAL', true);
-}
-require_once(__DIR__ . '/classes/query/refused.php');
-require_once(__DIR__ . '/classes/query/validator.php');
-require_once(__DIR__ . '/classes/query/runner.php');
-require_once(__DIR__ . '/classes/query/guard.php');
-require_once(__DIR__ . '/classes/query/busy.php');
 
 use block_learnboard\query\busy;
 use block_learnboard\query\guard;
@@ -65,19 +59,16 @@ use block_learnboard\query\refused;
 use block_learnboard\query\runner;
 use block_learnboard\query\validator;
 
-/** Reported to LearnBoard in the connection test; matches version.php. */
-const BLOCK_LEARNBOARD_QUERY_PLUGIN_VERSION = 2026091702;
-
 /** Largest request body accepted. */
 const BLOCK_LEARNBOARD_QUERY_MAX_REQUEST = 2 * 1024 * 1024;
 
 /** Largest answer sent back, in bytes of row data. */
 const BLOCK_LEARNBOARD_QUERY_MAX_ANSWER = 32 * 1024 * 1024;
 
-@set_time_limit(180);
+\core_php_time_limit::raise(180);
 
 $audit = [
-    'ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+    'ip' => getremoteaddr(),
     'op' => '',
     'status' => 0,
     'error' => '',
@@ -121,13 +112,19 @@ function block_learnboard_query_respond(int $status, array $body, string $key = 
 // Settings forced in config.php. Until 1.1.0 they were written under the
 // connector's component, local_learnboard, and a site that upgrades keeps its
 // config.php as it was, so those still count here; anything forced under
-// block_learnboard wins.
-$forced = [];
-foreach (['local_learnboard', 'block_learnboard'] as $forcedcomponent) {
-    if (isset($CFG->forced_plugin_settings[$forcedcomponent]) && is_array($CFG->forced_plugin_settings[$forcedcomponent])) {
-        $forced = $CFG->forced_plugin_settings[$forcedcomponent] + $forced;
+// block_learnboard wins (get_config applies those itself).
+$legacyforced = isset($CFG->forced_plugin_settings['local_learnboard']) && is_array($CFG->forced_plugin_settings['local_learnboard'])
+    ? $CFG->forced_plugin_settings['local_learnboard'] : [];
+$forced = (isset($CFG->forced_plugin_settings['block_learnboard']) && is_array($CFG->forced_plugin_settings['block_learnboard'])
+    ? $CFG->forced_plugin_settings['block_learnboard'] : []) + $legacyforced;
+$setting = function (string $name) use ($legacyforced): string {
+    $value = get_config('block_learnboard', $name);
+    if (($value === false || $value === null) && array_key_exists($name, $legacyforced)) {
+        $value = $legacyforced[$name];
     }
-}
+
+    return $value === false || $value === null ? '' : (string) $value;
+};
 
 if (!guard::transport_is_secure($CFG, $forced)) {
     block_learnboard_query_respond(403, ['error' => 'https_required']);
@@ -156,73 +153,47 @@ if (!ctype_digit($timestamp) || !preg_match('/^[a-f0-9]{32}$/', $nonce) || !preg
     block_learnboard_query_respond(401, ['error' => 'unauthenticated']);
 }
 
-// A request outside the window is refused before the database is touched, so
+// A request outside the window is refused before anything else is done, so
 // old captured requests cost this server nothing.
 if (abs(time() - (int) $timestamp) > 300) {
     block_learnboard_query_respond(401, ['error' => 'stale_request']);
 }
 
-// Settings: forced in config.php when the admin prefers that, otherwise the
-// plugin's own rows in the config table, read on Moodle's database account.
-try {
-    $settingsdb = new runner($CFG);
-} catch (\RuntimeException $e) {
-    block_learnboard_query_respond(503, ['error' => $e->getMessage() === 'unsupported_database' ? 'unsupported_database' : 'database_unreachable']);
-}
-$setting = function (string $name) use ($forced, $settingsdb, $CFG): string {
-    return array_key_exists($name, $forced) ? (string) $forced[$name] : $settingsdb->plugin_setting((string) $CFG->prefix, $name);
-};
-$coresetting = function (string $name) use ($settingsdb, $CFG): string {
-    return isset($CFG->$name) ? (string) $CFG->$name : $settingsdb->core_setting((string) $CFG->prefix, $name);
-};
-
-$audit['ip'] = guard::remote_address($coresetting('getremoteaddrconf'), $coresetting('reverseproxyignore'));
-
 $enabled = $setting('queryenabled') === '1';
 $key = trim($setting('querykey'));
 $allowedips = guard::parse_list($setting('queryallowedips'));
-$rouser = trim($setting('querydbuser'));
-$ropass = $setting('querydbpass');
 
 // The key is 256 random bits made by LearnBoard. A short one was typed by
 // hand and is refused rather than trusted.
 if (!$enabled || strlen($key) < 32) {
-    $settingsdb->close();
     block_learnboard_query_respond(403, ['error' => 'connector_disabled']);
 }
 
 if ($allowedips !== [] && !guard::address_in_list($audit['ip'], $allowedips)) {
-    $settingsdb->close();
     block_learnboard_query_respond(403, ['error' => 'address_not_allowed']);
 }
 
 $expected = hash_hmac('sha256', $timestamp . "\n" . $nonce . "\n" . hash('sha256', $raw), $key);
 if (!hash_equals($expected, $signature)) {
-    $settingsdb->close();
     block_learnboard_query_respond(401, ['error' => 'unauthenticated']);
 }
 
-// Replay guard: a nonce is a file in the data directory for ten minutes, so a
-// captured request cannot be sent again. Old ones are swept as we go.
-$noncedir = rtrim((string) $CFG->dataroot, '/\\') . '/temp/block_learnboard_nonce';
-if (!is_dir($noncedir)) {
-    @mkdir($noncedir, 0770, true);
-}
-$handle = @fopen($noncedir . '/' . $nonce, 'x');
+// Replay guard: a nonce is a file in Moodle's temp directory for ten minutes,
+// so a captured request cannot be sent again. Old ones are swept as we go.
+$noncedir = make_temp_directory('block_learnboard_nonce', false);
+$handle = $noncedir !== false ? @fopen($noncedir . '/' . $nonce, 'x') : false;
 if ($handle === false) {
-    $settingsdb->close();
-    block_learnboard_query_respond(409, ['error' => is_dir($noncedir) ? 'replayed_request' : 'nonce_store_unavailable'], $key, $nonce);
+    block_learnboard_query_respond(409, ['error' => $noncedir !== false ? 'replayed_request' : 'nonce_store_unavailable'], $key, $nonce);
 }
 fclose($handle);
 // A site upgrading from the two-plugin version runs both query endpoints, with
 // the same key, until the old connector is uninstalled. The old one keeps its
 // nonces in its own directory, so a request it accepted could otherwise be
 // replayed here within the five-minute window. Claim the nonce there too.
-$legacynoncedir = rtrim((string) $CFG->dataroot, '/\\') . '/temp/local_learnboard_nonce';
+$legacynoncedir = $CFG->tempdir . '/local_learnboard_nonce';
 if (is_dir($legacynoncedir)) {
     $legacy = @fopen($legacynoncedir . '/' . $nonce, 'x');
     if ($legacy === false) {
-        $settingsdb->close();
         block_learnboard_query_respond(409, ['error' => 'replayed_request'], $key, $nonce);
     }
     fclose($legacy);
@@ -237,51 +208,44 @@ if (random_int(1, 50) === 1) {
 
 $request = json_decode($raw, true);
 if (!is_array($request) || ($request['v'] ?? null) !== 1 || !in_array($request['op'] ?? '', ['ping', 'query'], true)) {
-    $settingsdb->close();
     block_learnboard_query_respond(400, ['error' => 'bad_request'], $key, $nonce);
 }
 
-// This site's own ceiling on how much it will do at once, answered BEFORE the
-// second database connection is opened so a busy moment costs almost nothing.
-// LearnBoard waits and asks again, so the reader gets a slower card rather than
-// a broken one. Ping is exempt: it is the health check, it does no work, and
-// refusing it would have LearnBoard report a healthy site as down.
+// This site's own ceiling on how much it will do at once, answered before any
+// query runs, so a busy moment costs almost nothing. LearnBoard waits and asks
+// again, so the reader gets a slower card rather than a broken one. Ping is
+// exempt: it is the health check, it does no work, and refusing it would have
+// LearnBoard report a healthy site as down.
 if ($request['op'] === 'query') {
-    $maxconcurrent = (int) $setting('maxconcurrent');
-    if (
-        $maxconcurrent === 0 && !array_key_exists('maxconcurrent', $forced)
-            && $settingsdb->plugin_setting((string) $CFG->prefix, 'maxconcurrent') === ''
-    ) {
-        // Never configured, on a site upgraded from a version without this.
-        $maxconcurrent = 8;
-    }
+    $configured = get_config('block_learnboard', 'maxconcurrent');
+    // Never configured, on a site upgraded from a version without this: 8.
+    $maxconcurrent = ($configured === false || $configured === '') ? 8 : (int) $configured;
     if (!busy::take($CFG, $maxconcurrent)) {
-        $settingsdb->close();
         header('Retry-After: ' . busy::RETRY_AFTER);
         block_learnboard_query_respond(429, ['error' => 'busy'], $key, $nonce);
     }
 }
 $audit['op'] = (string) $request['op'];
 
-// The queries run on the read-only database user when one is configured, and
-// always on a session that has been set read-only and checked.
+// The queries run on the SELECT-only database user when one is configured,
+// otherwise on Moodle's own connection, and always on a session set read-only
+// and checked. Nothing is connected for queries until the request is proven.
+$rouser = trim($setting('querydbuser'));
 try {
-    if ($rouser !== '') {
-        $settingsdb->close();
-        $db = new runner($CFG, $rouser, (string) $ropass);
-    } else {
-        $db = $settingsdb;
-    }
+    $db = new runner($DB, $CFG, $rouser, (string) $setting('querydbpass'));
     $db->lock_down();
 } catch (\RuntimeException $e) {
-    $code = $e->getMessage() === 'read_only_unavailable' ? 'read_only_unavailable' : 'database_unreachable';
+    $known = ['unsupported_database', 'read_only_unavailable'];
+    $code = in_array($e->getMessage(), $known, true) ? $e->getMessage() : 'database_unreachable';
     block_learnboard_query_respond(503, ['error' => $code], $key, $nonce);
 }
 
+$plugin = new stdClass();
+require(__DIR__ . '/version.php');
 $server = $db->server_info() + [
     'moodle_prefix' => (string) $CFG->prefix,
     'database' => (string) $CFG->dbname,
-    'plugin_version' => BLOCK_LEARNBOARD_QUERY_PLUGIN_VERSION,
+    'plugin_version' => (int) $plugin->version,
     'read_only_user' => $rouser !== '',
 ];
 
@@ -328,7 +292,8 @@ foreach (array_values($queries) as $query) {
         // only to the authenticated LearnBoard server that sent the query, and
         // is not written to the audit log.
         $entry['outcome'] = 'failed';
-        $results[] = ['ok' => false, 'error' => 'query_failed', 'message' => substr($e->getMessage(), 0, 500)];
+        $message = $e instanceof \dml_exception && !empty($e->debuginfo) ? $e->debuginfo : $e->getMessage();
+        $results[] = ['ok' => false, 'error' => 'query_failed', 'message' => substr((string) $message, 0, 500)];
         if ($e->getMessage() === 'response_too_large') {
             $audit['queries'][] = $entry;
             break;

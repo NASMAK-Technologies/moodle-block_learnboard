@@ -33,17 +33,20 @@ namespace block_learnboard\query;
  *
  *  - write, lock, sleep, read files or change session state;
  *  - read another database on the same server, or the server's own schemas;
- *  - read Moodle tables that hold secrets (site configuration, sessions, web
- *    service and LTI credentials, private keys, MFA secrets);
- *  - name a password, secret or key column at all;
+ *  - read any Moodle table outside the reporting tables LearnBoard uses, so
+ *    site configuration, sessions and every kind of credential stay out of reach;
+ *  - name a password, secret or key column, rename columns with a column
+ *    list, or select every column with *;
  *  - list the server's schema beyond this site's own tables.
  *
- * Every table a statement reads must be one of this site's own prefixed
- * tables, a name the statement defines itself (a WITH clause), or one of
- * four information_schema views restricted to this database.
+ * Deny by default: every table a statement names must be on the allowlist
+ * below, a name the statement defines itself (a WITH clause), or one of four
+ * information_schema views restricted to this database. A FROM or JOIN the
+ * walk cannot read completely is refused, not skipped. Every identifier that
+ * carries this site's table prefix is checked against the allowlist as well,
+ * wherever it appears, so no clause shape can bring in a table unseen.
  *
- * Pessimistic by design: anything that cannot be understood is refused. PHP
- * 7.3 syntax, because the plugin supports Moodle 4.0.
+ * PHP 7.3 syntax, because the plugin supports Moodle 4.0.
  */
 class validator {
     /** Verbs a statement may start with. SHOW, DESCRIBE and EXPLAIN are not needed and not allowed. */
@@ -71,28 +74,28 @@ class validator {
     ];
 
     /**
-     * Moodle tables (without prefix) that hold secrets or credentials.
-     * LearnBoard's reports never read them.
+     * The only Moodle tables (without prefix) a statement may read: the
+     * reporting tables LearnBoard's screens use. Anything else, including every
+     * table that holds configuration, sessions or credentials, is refused.
      */
-    public const FORBIDDEN_TABLES = [
-        'config', 'config_plugins', 'config_log', 'sessions', 'cache_flags',
-        'external_tokens', 'external_services_users', 'user_private_key',
-        'user_password_resets', 'user_password_history', 'user_devices',
-        'oauth2_issuer', 'oauth2_endpoint', 'oauth2_system_account', 'oauth2_access_token', 'oauth2_refresh_token',
-        'auth_oauth2_linked_login', 'auth_lti_linked_login',
-        'tool_mfa', 'tool_mfa_secrets', 'tool_mfa_auth_token',
-        'lti_types_config', 'lti_access_tokens', 'lti_tool_proxies', 'enrol_lti_tools', 'enrol_lti_lti2_consumer',
-        'enrol_lti_app_registration', 'enrol_lti_deployment',
-        'repository_instance_config', 'portfolio_instance_config', 'portfolio_instance_user',
-        'mnet_host', 'mnet_session', 'mnet_sso_access_control',
-        'badge_backpack', 'badge_external_backpack', 'message_airnotifier_devices',
-        'task_adhoc', 'backup_controllers', 'webdav_locks',
-        // Account unlock and repository tokens live in preferences.
-        'user_preferences',
-        // Payment, AI and SMS provider credentials (Moodle 3.10, 4.5, 4.5).
-        'payment_gateways', 'ai_providers', 'sms_gateways',
-        'registration_hubs', 'messageinbound_datakeys', 'badge_backpack_oauth2',
-        'repository_onedrive_access', 'portfolio_mahara_queue', 'portfolio_tempdata',
+    public const ALLOWED_TABLES = [
+        'assign', 'attendance', 'bigbluebuttonbn', 'block_xp', 'book', 'certificate', 'certificate_issues', 'chat',
+        'choice', 'cohort', 'cohort_members', 'context', 'course', 'course_categories', 'course_completion_criteria',
+        'course_completions', 'course_modules', 'course_modules_completion', 'course_sections', 'customcert',
+        'customcert_issues', 'data', 'enrol', 'feedback', 'files', 'folder', 'forum', 'glossary', 'grade_grades',
+        'grade_items', 'groups', 'groups_members', 'h5pactivity', 'imscp', 'label', 'lesson', 'logstore_standard_log',
+        'lti', 'modules', 'notifications', 'page', 'question', 'question_answers', 'question_attempt_steps',
+        'question_attempts', 'questionnaire', 'questionnaire_question', 'questionnaire_response',
+        'questionnaire_response_rank', 'questionnaire_response_text', 'quiz', 'quiz_attempts', 'resource', 'role',
+        'role_assignments', 'role_capabilities', 'scorm', 'scorm_scoes_track', 'subsection', 'supervideo', 'survey',
+        'tag', 'tag_instance', 'task_log', 'tool_certificate_issues', 'url', 'user', 'user_enrolments',
+        'user_lastaccess', 'webgl', 'wiki', 'workshop',
+    ];
+
+    /** Keywords that end a table reference in a FROM list. */
+    public const CLAUSE_KEYWORDS = [
+        'WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'CROSS', 'NATURAL',
+        'STRAIGHT_JOIN', 'ON', 'USING', 'UNION', 'WINDOW', 'EXCEPT', 'INTERSECT', 'OUTER', 'FULL',
     ];
 
     /** Column names that are never readable, whatever table they are in. */
@@ -188,6 +191,10 @@ class validator {
             }
         }
 
+        $this->assert_no_table_or_values_statement($tokens);
+        $this->assert_no_star_projection($tokens);
+        $this->assert_prefixed_names_allowed($tokens);
+
         $ctes = $this->cte_names($tokens);
         $usesinfoschema = false;
         foreach ($this->table_references($tokens) as $ref) {
@@ -201,10 +208,7 @@ class validator {
                 if ($this->prefix === '' || strpos($table, $this->prefix) !== 0) {
                     throw new refused("table '{$ref['table']}' is not one of this site's tables");
                 }
-                $bare = substr($table, strlen($this->prefix));
-                if (in_array($bare, self::FORBIDDEN_TABLES, true)) {
-                    throw new refused("the {$bare} table is not readable");
-                }
+                $this->assert_table_allowed(substr($table, strlen($this->prefix)));
                 continue;
             }
 
@@ -276,6 +280,87 @@ class validator {
     }
 
     /**
+     * Refuses a table outside the reporting allowlist.
+     *
+     * @param string $bare table name without the prefix, lower case
+     * @throws refused
+     */
+    private function assert_table_allowed(string $bare): void {
+        if (!in_array($bare, self::ALLOWED_TABLES, true)) {
+            throw new refused("the {$bare} table is not one LearnBoard reads");
+        }
+    }
+
+    /**
+     * Refuses MySQL's TABLE and VALUES statements anywhere in the statement:
+     * "UNION TABLE mdl_config" reads a whole table without a FROM.
+     *
+     * @param array $tokens
+     * @throws refused
+     */
+    private function assert_no_table_or_values_statement(array $tokens): void {
+        foreach ($tokens as $token) {
+            if ($token['type'] === 'ident' && in_array(strtoupper($token['value']), ['TABLE', 'VALUES'], true)) {
+                throw new refused("the {$token['value']} statement is not allowed");
+            }
+        }
+    }
+
+    /**
+     * Refuses SELECT * and t.*: a star returns columns the statement never
+     * names, which the column checks cannot see. COUNT(*) and multiplication
+     * are not projections and stay allowed.
+     *
+     * @param array $tokens
+     * @throws refused
+     */
+    private function assert_no_star_projection(array $tokens): void {
+        foreach ($tokens as $i => $token) {
+            if ($token['type'] !== 'punct' || $token['value'] !== '*') {
+                continue;
+            }
+            $prev = $tokens[$i - 1] ?? null;
+            if ($prev === null) {
+                continue;
+            }
+            $before = strtoupper($prev['value']);
+            $keyword = $prev['type'] === 'ident' && in_array($before, ['SELECT', 'DISTINCT', 'ALL'], true);
+            if ($before === ',' || $before === '.' || $keyword) {
+                throw new refused('select named columns, not *');
+            }
+        }
+    }
+
+    /**
+     * Every identifier carrying this site's table prefix must be an allowed
+     * table, wherever it appears in the statement. Moodle tables always carry
+     * the prefix, so a table cannot be brought in by a clause shape the walk
+     * does not know.
+     *
+     * @param array $tokens
+     * @throws refused
+     */
+    private function assert_prefixed_names_allowed(array $tokens): void {
+        if ($this->prefix === '') {
+            return;
+        }
+        foreach ($tokens as $i => $token) {
+            if (!in_array($token['type'], ['ident', 'quoted'], true)) {
+                continue;
+            }
+            $name = strtolower($token['value']);
+            if (strpos($name, $this->prefix) !== 0) {
+                continue;
+            }
+            // The column of a qualified name (alias.mdl_x) is not a table.
+            if (($tokens[$i - 1]['value'] ?? '') === '.') {
+                continue;
+            }
+            $this->assert_table_allowed(substr($name, strlen($this->prefix)));
+        }
+    }
+
+    /**
      * Break the (comment- and string-stripped) statement into identifiers,
      * quoted identifiers, placeholders and punctuation.
      *
@@ -307,31 +392,37 @@ class validator {
     /**
      * Names the statement defines with WITH name AS ( ... ).
      *
+     * A column list (WITH t (a, b) AS ...) is refused: it renames the columns
+     * of the query inside, so a password column could leave under another name.
+     *
      * @param array $tokens
      * @return array<int, string>
+     * @throws refused
      */
     private function cte_names(array $tokens): array {
         $names = [];
         $count = count($tokens);
+        $inwith = false;
         for ($i = 0; $i < $count; $i++) {
             $word = strtoupper($tokens[$i]['value']);
-            if (!in_array($word, ['WITH', 'RECURSIVE', ','], true)) {
+            if ($word === 'WITH' && $tokens[$i]['type'] === 'ident') {
+                $inwith = true;
+            }
+            if (!$inwith || !in_array($word, ['WITH', 'RECURSIVE', ','], true)) {
                 continue;
             }
             $name = $tokens[$i + 1] ?? null;
             if ($name === null || !in_array($name['type'], ['ident', 'quoted'], true)) {
                 continue;
             }
-            $k = $i + 2;
-            if (($tokens[$k]['value'] ?? '') === '(') {
-                // An optional column list: name (a, b, c) AS (...).
-                while ($k < $count && $tokens[$k]['value'] !== ')') {
-                    $k++;
-                }
-                $k++;
+            $next = $tokens[$i + 2]['value'] ?? '';
+            if ($next === '(' && $word !== ',') {
+                throw new refused('a column list after a WITH name is not allowed');
             }
-            if (strtoupper($tokens[$k]['value'] ?? '') === 'AS' && ($tokens[$k + 1]['value'] ?? '') === '(') {
+            if (strtoupper($next) === 'AS' && ($tokens[$i + 3]['value'] ?? '') === '(') {
                 $names[] = strtolower($name['value']);
+            } else if ($next === '(' && $this->is_cte_column_list($tokens, $i + 2)) {
+                throw new refused('a column list after a WITH name is not allowed');
             }
         }
 
@@ -339,10 +430,31 @@ class validator {
     }
 
     /**
-     * Every table the statement reads: after FROM (including comma-separated
-     * lists) and after JOIN. A FROM inside EXTRACT(), TRIM() and similar is
-     * part of that function, not a table; a derived table in parentheses is
-     * checked as its own FROM clauses when the walk reaches them.
+     * Whether "(" at $j opens a column list followed by AS (, the shape of a
+     * WITH name with renamed columns, rather than a function call.
+     *
+     * @param array $tokens
+     * @param int $j
+     * @return bool
+     */
+    private function is_cte_column_list(array $tokens, int $j): bool {
+        try {
+            $close = $this->matching_paren($tokens, $j);
+        } catch (refused $e) {
+            return true;
+        }
+
+        return strtoupper($tokens[$close + 1]['value'] ?? '') === 'AS' && ($tokens[$close + 2]['value'] ?? '') === '(';
+    }
+
+    /**
+     * Every table the statement reads: after FROM (the whole comma-separated
+     * list) and after JOIN. A FROM inside EXTRACT(), TRIM() and similar is part
+     * of that function, not a table. A derived table, (SELECT ...) or
+     * (WITH ...), is stepped over here and its own FROM clauses are read when
+     * the walk reaches them. Anything else after FROM or JOIN that the walk
+     * cannot read completely is refused: a parenthesised table list, a table
+     * function, a derived column list, a partition clause.
      *
      * @param array $tokens
      * @return array<int, array{schema: ?string, table: string}>
@@ -375,31 +487,105 @@ class validator {
                     continue;
                 }
                 $j = $i + 1;
-                while ($j < $count) {
-                    if (($tokens[$j]['value'] ?? '') === '(') {
-                        break; // Derived table: its own FROM is checked by the walk.
-                    }
-                    [$ref, $j] = $this->read_table_reference($tokens, $j);
-                    $refs[] = $ref;
-                    $j = $this->skip_alias($tokens, $j);
+                while (true) {
+                    $j = $this->read_from_item($tokens, $j, $refs);
                     if (($tokens[$j]['value'] ?? '') !== ',') {
                         break;
                     }
                     $j++;
                 }
+                $this->assert_reference_ends($tokens, $j);
                 continue;
             }
 
             if ($word === 'JOIN' || $word === 'STRAIGHT_JOIN') {
-                if (($tokens[$i + 1]['value'] ?? '') === '(') {
-                    continue;
-                }
-                [$ref, $j] = $this->read_table_reference($tokens, $i + 1);
-                $refs[] = $ref;
+                $j = $this->read_from_item($tokens, $i + 1, $refs);
+                $this->assert_reference_ends($tokens, $j);
             }
         }
 
         return $refs;
+    }
+
+    /**
+     * Reads one item of a FROM list or a JOIN: a table with optional schema
+     * and alias, or a derived table with an alias. Index hints are not read,
+     * so they end up refused: LearnBoard does not send them. Returns the
+     * index of the token after it.
+     *
+     * @param array $tokens
+     * @param int $j
+     * @param array $refs collected table references
+     * @return int
+     * @throws refused
+     */
+    private function read_from_item(array $tokens, int $j, array &$refs): int {
+        if (($tokens[$j]['value'] ?? '') === '(') {
+            $inner = strtoupper($tokens[$j + 1]['value'] ?? '');
+            if ($inner !== 'SELECT' && $inner !== 'WITH') {
+                throw new refused('a parenthesised table list is not allowed');
+            }
+            $j = $this->matching_paren($tokens, $j) + 1;
+            $j = $this->skip_alias($tokens, $j);
+            if (($tokens[$j]['value'] ?? '') === '(') {
+                throw new refused('a column list after a derived table is not allowed');
+            }
+
+            return $j;
+        }
+
+        [$ref, $j] = $this->read_table_reference($tokens, $j);
+        $refs[] = $ref;
+        $j = $this->skip_alias($tokens, $j);
+
+        return $j;
+    }
+
+    /**
+     * After a FROM list or a JOIN item the next token must end the reference:
+     * a clause keyword, a closing parenthesis or the end of the statement.
+     * Anything else is a shape the walk did not read.
+     *
+     * @param array $tokens
+     * @param int $j
+     * @throws refused
+     */
+    private function assert_reference_ends(array $tokens, int $j): void {
+        $next = $tokens[$j] ?? null;
+        if ($next === null || $next['value'] === ')') {
+            return;
+        }
+        if ($next['type'] === 'ident' && in_array(strtoupper($next['value']), self::CLAUSE_KEYWORDS, true)) {
+            return;
+        }
+        throw new refused('a FROM or JOIN clause could not be read completely');
+    }
+
+    /**
+     * Index of the parenthesis closing the one at $j.
+     *
+     * @param array $tokens
+     * @param int $j index of an opening parenthesis
+     * @return int
+     * @throws refused
+     */
+    private function matching_paren(array $tokens, int $j): int {
+        if (($tokens[$j]['value'] ?? '') !== '(') {
+            throw new refused('a table reference could not be read');
+        }
+        $depth = 0;
+        $count = count($tokens);
+        for ($k = $j; $k < $count; $k++) {
+            if ($tokens[$k]['value'] === '(') {
+                $depth++;
+            } else if ($tokens[$k]['value'] === ')') {
+                $depth--;
+                if ($depth === 0) {
+                    return $k;
+                }
+            }
+        }
+        throw new refused('unbalanced parentheses');
     }
 
     /**
@@ -431,15 +617,14 @@ class validator {
     }
 
     /**
-     * Step over "AS alias" or "alias" after a table name.
+     * Step over "AS alias" or "alias" after a table name or a derived table.
      *
      * @param array $tokens
      * @param int $j
      * @return int
      */
     private function skip_alias(array $tokens, int $j): int {
-        $stop = ['WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'CROSS', 'NATURAL',
-            'STRAIGHT_JOIN', 'ON', 'USING', 'UNION', 'WINDOW', 'FOR', 'LOCK', 'INTO', 'FULL', 'OUTER', 'USE', 'FORCE', 'IGNORE'];
+        $stop = array_merge(self::CLAUSE_KEYWORDS, ['USE', 'FORCE', 'IGNORE', 'FOR', 'LOCK', 'INTO', 'PARTITION']);
         if (strtoupper($tokens[$j]['value'] ?? '') === 'AS') {
             $j++;
         }

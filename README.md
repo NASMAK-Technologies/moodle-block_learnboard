@@ -35,8 +35,8 @@ more than their Moodle role allows.
 
 The plugin installs and runs on every database Moodle supports. The data
 connector, the part that lets LearnBoard read your site's reporting data,
-supports **MySQL and MariaDB only**: LearnBoard's reports are written for
-them. On a PostgreSQL or Microsoft SQL Server site the connector answers
+runs through Moodle's DML API and supports **MySQL and MariaDB only**:
+LearnBoard's reports are written in their SQL dialect. On a PostgreSQL or Microsoft SQL Server site the connector answers
 "unsupported database" and LearnBoard says so when you connect, so no
 figures can be read from that site yet.
 

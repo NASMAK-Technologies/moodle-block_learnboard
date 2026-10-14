@@ -219,7 +219,7 @@ class client {
 
         require_once($CFG->libdir . '/filelib.php');
         $version = (string) (get_config('block_learnboard', 'version') ?: '');
-        $curl = new \curl(['ignoresecurity' => true]);
+        $curl = new \curl();
         $curl->setHeader(['Content-Type: application/json', 'Accept: application/json', 'X-Embed-Key: ' . $key]);
         // Long enough for LearnBoard to call this site back and hear the answer.
         $curl->setopt(['CURLOPT_TIMEOUT' => 45, 'CURLOPT_CONNECTTIMEOUT' => 10]);
@@ -269,11 +269,10 @@ class client {
 
         require_once($CFG->libdir . '/filelib.php');
 
-        // Ignoresecurity: the LearnBoard URL is trusted infrastructure set by a
-        // site admin (not user input), so bypass Moodle's SSRF host blocklist —
-        // otherwise a LearnBoard reachable on localhost/a private network (common
-        // in dev and on-prem deployments) is refused with "The URL is blocked".
-        $curl = new \curl(['ignoresecurity' => true]);
+        // Moodle's HTTP security settings apply (blocked hosts, allowed ports).
+        // A LearnBoard on a private network is allowed by the site admin in
+        // Site administration > Security > HTTP security.
+        $curl = new \curl();
         $curl->setHeader([
             'Content-Type: application/json',
             'Accept: application/json',
@@ -318,7 +317,7 @@ class client {
 
         require_once($CFG->libdir . '/filelib.php');
 
-        $curl = new \curl(['ignoresecurity' => true]);
+        $curl = new \curl();
         $curl->setHeader([
             'Accept: application/json',
             'Authorization: Bearer ' . $token['token'],
@@ -410,7 +409,7 @@ class client {
 
         require_once($CFG->libdir . '/filelib.php');
 
-        $curl = new \curl(['ignoresecurity' => true]);
+        $curl = new \curl();
         $curl->setHeader([
             'Accept: application/json',
             'X-Embed-Key: ' . $key,

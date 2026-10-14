@@ -28,7 +28,8 @@ namespace block_learnboard\query;
  * What query.php checks about a request before and after it is authenticated,
  * and the audit trail it leaves.
  *
- * Kept free of Moodle's libraries because the endpoint loads config.php only.
+ * The checks are plain PHP, so cli/validator_attack_check.php can run them
+ * without a Moodle install; only the audit log uses Moodle's directory helper.
  * PHP 7.3 syntax, because the plugin supports Moodle 4.0.
  */
 class guard {
@@ -161,8 +162,12 @@ class guard {
      * @param array $entry
      */
     public static function audit($cfg, array $entry): void {
-        $dir = rtrim((string) $cfg->dataroot, '/\\') . '/block_learnboard';
-        if (!is_dir($dir) && !@mkdir($dir, 0770, true)) {
+        try {
+            $dir = make_writable_directory(rtrim((string) $cfg->dataroot, '/\\') . '/block_learnboard', false);
+        } catch (\Throwable $e) {
+            $dir = false;
+        }
+        if ($dir === false) {
             return;
         }
         $file = $dir . '/query-audit.log';

@@ -275,7 +275,8 @@ class block_learnboard extends block_base {
 
         if (!\block_learnboard\client::is_configured()) {
             $this->content->text = html_writer::div(
-                get_string('notconfiguredsite', 'block_learnboard'),
+                get_string('notconfiguredsite', 'block_learnboard',
+                (new moodle_url('/admin/settings.php', ['section' => 'block_learnboard_connect']))->out(false)),
                 'learnboard-embed-notice'
             );
 
@@ -392,15 +393,24 @@ class block_learnboard extends block_base {
             // The chart script and styles come from LearnBoard itself.
             'bundleUrl' => \block_learnboard\client::sdk_url('js'),
             'cssUrl' => \block_learnboard\client::sdk_url('css'),
-            'saveUrl' => (new moodle_url('/blocks/learnboard/ajax/savelayout.php'))->out(false),
+            // Layout saves go to the block_learnboard_save_layout web service.
+            'saveUrl' => (new moodle_url('/lib/ajax/service.php', [
+                'sesskey' => sesskey(),
+                'info' => 'block_learnboard_save_layout',
+            ]))->out(false),
             'apiBase' => \block_learnboard\client::apibase(),
             'token' => $tokendata['token'],
-            // Renewed before it runs out, so a page left open keeps working.
+            // Renewed before it runs out through the block_learnboard_get_token
+            // web service, so a page left open keeps working.
             'tokenExpiresAt' => $tokendata['expires_at'] ?? null,
-            'tokenRefreshUrl' => (new moodle_url('/blocks/learnboard/ajax/token.php', [
-                'contextid' => $this->context->id,
-                'sesskey' => sesskey(),
-            ]))->out(false),
+            'tokenRefreshService' => [
+                'url' => (new moodle_url('/lib/ajax/service.php', [
+                    'sesskey' => sesskey(),
+                    'info' => 'block_learnboard_get_token',
+                ]))->out(false),
+                'methodname' => 'block_learnboard_get_token',
+                'args' => ['contextid' => (int) $this->context->id],
+            ],
             'tenantSlug' => \block_learnboard\client::tenant(),
             'theme' => \block_learnboard\client::theme(),
             'layout' => $layout,
@@ -410,7 +420,6 @@ class block_learnboard extends block_base {
             'courseId' => $courseid,
             'blockId' => (int) $this->instance->id,
             'failText' => get_string('loadfailed', 'block_learnboard'),
-            'sesskey' => sesskey(),
         ];
 
         $host = html_writer::div('', 'learnboard-embed-host', [
@@ -473,10 +482,11 @@ class block_learnboard extends block_base {
   };
   window.__learnboardSaveTimers = window.__learnboardSaveTimers || {};
   window.__learnboardPending = window.__learnboardPending || {};
+  // A call to the block_learnboard_save_layout web service, in the request
+  // format of Moodle's lib/ajax/service.php (the transport core/ajax uses).
   function saveBody(layout){
-    return 'blockid=' + encodeURIComponent(cfg.blockId)
-         + '&sesskey=' + encodeURIComponent(cfg.sesskey)
-         + '&layout=' + encodeURIComponent(JSON.stringify(layout));
+    return JSON.stringify([{ index: 0, methodname: 'block_learnboard_save_layout',
+      args: { blockid: cfg.blockId, layout: JSON.stringify(layout) } }]);
   }
   function saveLayout(layout){
     window.__learnboardPending[cfg.blockId] = layout;
@@ -488,9 +498,11 @@ class block_learnboard extends block_base {
       window.__learnboardPending[cfg.blockId] = null;
       fetch(cfg.saveUrl, {
         method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 'Content-Type': 'application/json' },
         body: saveBody(l)
-      }).then(function(r){ if (!r.ok && window.console) { console.warn('[learnboard] layout save failed: HTTP ' + r.status); } })
+      }).then(function(r){ return r.json(); }).then(function(reply){
+        if (reply && reply[0] && reply[0].error && window.console) { console.warn('[learnboard] layout save failed', reply[0].exception); }
+      })
         .catch(function(){ /* transient; next edit retries */ });
     }, 600);
   }
@@ -505,12 +517,12 @@ class block_learnboard extends block_base {
     var timers = window.__learnboardSaveTimers;
     if (timers[cfg.blockId]) { clearTimeout(timers[cfg.blockId]); timers[cfg.blockId] = null; }
     try {
-      var blob = new Blob([saveBody(l)], { type: 'application/x-www-form-urlencoded' });
+      var blob = new Blob([saveBody(l)], { type: 'application/json' });
       if (navigator.sendBeacon && navigator.sendBeacon(cfg.saveUrl, blob)) { return; }
     } catch (e) { /* fall through to keepalive fetch */ }
     fetch(cfg.saveUrl, {
       method: 'POST', credentials: 'same-origin', keepalive: true,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: saveBody(l)
+      headers: { 'Content-Type': 'application/json' }, body: saveBody(l)
     }).catch(function(){});
   }
   window.addEventListener('pagehide', flushLayout);
@@ -553,7 +565,7 @@ class block_learnboard extends block_base {
       apiBase: cfg.apiBase,
       token: cfg.token,
       tokenExpiresAt: cfg.tokenExpiresAt,
-      tokenRefreshUrl: cfg.tokenRefreshUrl,
+      tokenRefreshService: cfg.tokenRefreshService,
       tenantSlug: cfg.tenantSlug,
       theme: resolveTheme(),
       styles: { css: css, tokens: '' },
