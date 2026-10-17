@@ -200,6 +200,19 @@ class block_learnboard extends block_base {
             return true;
         }
 
+        // On a course page the course's own roles decide. Anywhere else (the
+        // Dashboard, the front page) students and teachers hold their roles only
+        // inside courses, never where the block sits, so a role of that kind held
+        // in any context counts.
+        $coursecontext = $this->context->get_course_context(false);
+        if (!$coursecontext || (int) $coursecontext->instanceid === (int) SITEID) {
+            return $DB->record_exists_sql(
+                "SELECT 1 FROM {role_assignments} ra JOIN {role} r ON r.id = ra.roleid
+                  WHERE ra.userid = :userid AND r.archetype = :archetype",
+                ['userid' => $USER->id, 'archetype' => $audience]
+            );
+        }
+
         $roles = get_user_roles($this->context, $USER->id, true);
         foreach ($roles as $ra) {
             if ($DB->get_field('role', 'archetype', ['id' => $ra->roleid]) === $audience) {

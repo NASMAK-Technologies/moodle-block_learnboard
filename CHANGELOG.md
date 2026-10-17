@@ -4,6 +4,14 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.15] - 2026-10-17
+
+### Fixed
+- A block shown only to students or only to teachers now appears on the
+  Dashboard and the front page. Students and teachers hold their roles inside
+  courses, not where those pages sit, so the block was hidden from everyone
+  there. On a course page the course's own roles still decide.
+
 ## [1.1.14] - 2026-10-14
 
 Changes from the Moodle plugins directory review.
