@@ -200,3 +200,58 @@
     margin: 0;
     color: inherit;
 }
+
+/* The connect steps, one per row, in the same card look (owner request,
+   23 Oct 2026). A step that is neither done nor current is locked. */
+.block_learnboard-connected.block_learnboard-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    list-style: none;
+    margin: 0 0 1.25rem;
+}
+
+.block_learnboard-connected .block_learnboard-step {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    margin: 0;
+}
+
+.block_learnboard-connected .block_learnboard-step + .block_learnboard-step {
+    padding-top: 1rem;
+    border-top: 1px solid var(--lbc-border);
+}
+
+.block_learnboard-connected .block_learnboard-step:not(.block_learnboard-step--done):not(.block_learnboard-step--current) {
+    opacity: .6;
+}
+
+.block_learnboard-connected .block_learnboard-step--current .block_learnboard-connected__medallion {
+    box-shadow: 0 0 0 2px var(--lbc-teal);
+}
+
+.block_learnboard-connected .block_learnboard-step__number {
+    font-weight: 700;
+}
+
+.block_learnboard-connected .block_learnboard-step__title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--lbc-text);
+}
+
+.block_learnboard-connected .block_learnboard-step__text,
+.block_learnboard-connected .block_learnboard-step__status {
+    margin: .25rem 0 0;
+    color: var(--lbc-text-soft);
+}
+
+.block_learnboard-connected .block_learnboard-step__status {
+    font-weight: 600;
+    color: var(--lbc-text);
+}
+
+.block_learnboard-connected .block_learnboard-step .block_learnboard-connected__primary {
+    margin-top: .75rem;
+}

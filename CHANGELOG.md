@@ -4,6 +4,14 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.16] - 2026-10-23
+
+### Changed
+- Connect to LearnBoard now reads as three steps taken in order, one per row:
+  get your connection code (with a link to LearnBoard), paste it in the box and
+  save, then open your dashboards. Step 3 stays locked until the site connects,
+  and once it is connected the first two steps show as done, with the date.
+
 ## [1.1.15] - 2026-10-17
 
 ### Fixed

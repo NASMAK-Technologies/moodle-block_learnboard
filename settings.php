@@ -189,19 +189,16 @@ if ($hassiteconfig) {
     $connect = new admin_settingpage('block_learnboard_connect', get_string('connectioncode_heading', 'block_learnboard'));
     // No heading title: the page is already called "Connect to LearnBoard",
     // and the same words twice in a row read as a mistake.
-    $connect->add(new admin_setting_heading(
-        'block_learnboard/codeheading',
-        '',
-        get_string('connectioncode_heading_desc', 'block_learnboard')
-    ));
+    // Steps 1 and 2 above the field, step 3 below it: taken in order, and
+    // step 3 stays locked until the site connects (owner request, 23 Oct 2026).
+    $connect->add(new \block_learnboard\admin\setting_connection_steps('block_learnboard/connectionsteps'));
     $connect->add(new \block_learnboard\admin\setting_connection_code(
         'block_learnboard/connectioncode',
         get_string('connectioncode', 'block_learnboard'),
-        get_string('connectioncode_desc', 'block_learnboard') . '<br><strong>' .
-            \block_learnboard\admin\setting_connection_code::status_text() . '</strong>',
+        get_string('connectioncode_desc', 'block_learnboard'),
         ''
     ));
-    // Once connected: where the dashboards are, and what comes with them.
+    // Step 3: where the dashboards are, and what comes with them.
     $connect->add(new \block_learnboard\admin\setting_connected_panel('block_learnboard/connectedpanel'));
     $ADMIN->add('blocksettings', $connect);
 

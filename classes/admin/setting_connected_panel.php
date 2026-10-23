@@ -63,7 +63,8 @@ class setting_connected_panel extends \admin_setting {
     }
 
     /**
-     * The card, once the site is connected; nothing before that.
+     * Step 3: the card once the site is connected, and before that the
+     * same step, locked, so the page reads as steps taken in order.
      *
      * @param mixed $data
      * @param string $query
@@ -75,7 +76,15 @@ class setting_connected_panel extends \admin_setting {
         $raw = get_config('block_learnboard', 'lastconnection');
         $last = is_string($raw) ? json_decode($raw, true) : null;
         if (!is_array($last) || empty($last['connected'])) {
-            return '';
+            return $OUTPUT->render_from_template('block_learnboard/connection_steps', [
+                'steps' => [[
+                    'number' => 3,
+                    'done' => false,
+                    'current' => false,
+                    'title' => get_string('connectstep3_title', 'block_learnboard'),
+                    'text' => get_string('connectstep3_locked', 'block_learnboard'),
+                ]],
+            ]);
         }
 
         $dashboardurl = (new \moodle_url('/blocks/learnboard/index.php'))->out(false);

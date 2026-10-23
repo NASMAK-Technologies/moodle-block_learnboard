@@ -1,0 +1,58 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template block_learnboard/connection_steps
+
+    Steps 1 and 2 on "Connect to LearnBoard", one per row, above the code field.
+
+    Context variables required for this template:
+    * steps - Each with number, done, current, title, text, and optionally
+      linkurl and linktext (a button) or status (a line under the text).
+
+    Example context (json):
+    {
+        "steps": [
+            {"number": 1, "done": false, "current": true, "title": "Get your connection code",
+             "text": "In LearnBoard, open Admin, Data sources and make a code.",
+             "linkurl": "https://learnboard.learnoow.com/admin/data-sources", "linktext": "Open LearnBoard"},
+            {"number": 2, "done": false, "current": true, "title": "Paste it below and save",
+             "text": "Paste the code in the box below, then press Save changes.", "status": "Not connected with a code yet."}
+        ]
+    }
+}}
+<ol class="block_learnboard-connected block_learnboard-steps">
+    {{#steps}}
+    <li class="block_learnboard-step{{#done}} block_learnboard-step--done{{/done}}{{#current}} block_learnboard-step--current{{/current}}">
+        <span class="block_learnboard-connected__medallion{{#done}} block_learnboard-connected__medallion--done{{/done}}">
+            {{#done}}{{#pix}} i/checked, core {{/pix}}{{/done}}{{^done}}<span class="block_learnboard-step__number">{{number}}</span>{{/done}}
+        </span>
+        <div class="block_learnboard-step__body">
+            <p class="block_learnboard-connected__eyebrow">
+                {{#str}} connectstep, block_learnboard, {{number}} {{/str}}{{#done}} · {{#str}} connectstepdone, block_learnboard {{/str}}{{/done}}
+            </p>
+            <div class="block_learnboard-step__title" role="heading" aria-level="3">{{title}}</div>
+            <p class="block_learnboard-step__text">{{text}}</p>
+            {{#status}}<p class="block_learnboard-step__status">{{status}}</p>{{/status}}
+            {{#linkurl}}
+            <a class="btn block_learnboard-connected__primary" href="{{linkurl}}" target="_blank" rel="noopener">
+                {{linktext}} {{#pix}} i/externallink, core {{/pix}}
+            </a>
+            {{/linkurl}}
+        </div>
+    </li>
+    {{/steps}}
+</ol>
