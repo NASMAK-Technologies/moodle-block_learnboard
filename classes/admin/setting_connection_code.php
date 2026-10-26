@@ -87,6 +87,11 @@ class setting_connection_code extends \admin_setting_configtext {
         set_config('embedkey', $decoded['ek'], 'block_learnboard');
         set_config('querykey', $decoded['ck'], 'block_learnboard');
         set_config('queryenabled', 1, 'block_learnboard');
+        // Per-user sign-in too, as the field promises ("charts, sign-in and
+        // reading data"). Left off, a fresh site gave every teacher, manager
+        // and learner "could not load" and only site managers one shared view.
+        // Each person now sees only their own groups; an admin can turn it off.
+        set_config('ssoenabled', 1, 'block_learnboard');
 
         $result = \block_learnboard\client::register_site();
         set_config('lastconnection', json_encode($result + ['time' => time()]), 'block_learnboard');

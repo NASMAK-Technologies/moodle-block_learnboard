@@ -4,6 +4,14 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.17] - 2026-10-27
+
+### Fixed
+- Saving a connection code now also switches on per-user sign-in, as the
+  field says. On a newly installed site it stayed off, so teachers, managers
+  and learners saw "could not load" in blocks and on the LearnBoard page,
+  and only site managers saw charts, as one shared read-only view.
+
 ## [1.1.16] - 2026-10-23
 
 ### Changed
