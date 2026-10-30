@@ -88,8 +88,8 @@ class validator {
         'question_attempts', 'questionnaire', 'questionnaire_question', 'questionnaire_response',
         'questionnaire_response_rank', 'questionnaire_response_text', 'quiz', 'quiz_attempts', 'resource', 'role',
         'role_assignments', 'role_capabilities', 'scorm', 'scorm_scoes_track', 'subsection', 'supervideo', 'survey',
-        'tag', 'tag_instance', 'task_log', 'tool_certificate_issues', 'url', 'user', 'user_enrolments',
-        'user_lastaccess', 'webgl', 'wiki', 'workshop',
+        'tag', 'tag_instance', 'task_log', 'tool_certificate_issues', 'tool_certificate_templates', 'url', 'user',
+        'user_enrolments', 'user_lastaccess', 'webgl', 'wiki', 'workshop',
     ];
 
     /** Keywords that end a table reference in a FROM list. */

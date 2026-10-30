@@ -33,6 +33,7 @@ $allowed = [
     ['SELECT id, username, email FROM mdl_user WHERE deleted = ? AND id > ?', [0, 1]],
     ['SELECT u.id, COUNT(*) AS c FROM mdl_user u JOIN mdl_user_enrolments ue ON ue.userid = u.id LEFT JOIN `mdl_enrol` e ON e.id = ue.enrolid GROUP BY u.id', []],
     ['SELECT a.id FROM mdl_course a, mdl_course_categories b WHERE a.category = b.id', []],
+    ['SELECT ti.id, tt.name FROM mdl_tool_certificate_issues ti LEFT JOIN mdl_tool_certificate_templates tt ON tt.id = ti.templateid', []],
     ['SELECT x.c FROM (SELECT COUNT(*) AS c FROM mdl_logstore_standard_log WHERE timecreated > ?) x', [1]],
     ['WITH recent AS (SELECT userid FROM mdl_logstore_standard_log) SELECT COUNT(*) FROM recent', []],
     ['WITH RECURSIVE tree AS (SELECT id, parent FROM mdl_course_categories) SELECT id, parent FROM tree', []],

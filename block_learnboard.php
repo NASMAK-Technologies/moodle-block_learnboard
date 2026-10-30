@@ -564,7 +564,7 @@ class block_learnboard extends block_base {
     if (cfg.courseId) {
       (layout.items || []).forEach(function(it){
         it.params = it.params || {};
-        if (it.params.course_id === undefined) { it.params.course_id = cfg.courseId; }
+        if (it.params.courseId === undefined) { it.params.courseId = cfg.courseId; }
       });
     }
     // Linked block → mirror a named LearnBoard dashboard (read-only); the SDK

@@ -4,6 +4,17 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.18] - 2026-10-31
+
+### Fixed
+- My learning, Certificate expiry, Mandatory training and the parent view no
+  longer fail on sites that issue certificates with the Certificate manager
+  (tool_certificate). LearnBoard reads the certificate's template name, and
+  the data connector refused that table, so those views showed an error.
+- On a course page, charts that can follow a course now show that course.
+  The block handed the course over under a name the charts did not read, so
+  they showed every course.
+
 ## [1.1.17] - 2026-10-27
 
 ### Fixed
