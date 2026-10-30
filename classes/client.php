@@ -243,7 +243,7 @@ class client {
             ];
         }
 
-        $reasons = [0 => 'unreachable', 401 => 'code_not_accepted', 409 => 'code_replaced', 422 => 'address_not_allowed', 429 => 'too_many_attempts'];
+        $reasons = [0 => 'unreachable', 401 => 'code_not_accepted', 409 => 'no_connection_code', 422 => 'address_not_allowed', 429 => 'too_many_attempts'];
 
         return ['connected' => false, 'active' => false, 'reason' => $reasons[$code] ?? ('http_' . $code)];
     }

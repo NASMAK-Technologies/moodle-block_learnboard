@@ -149,10 +149,17 @@ class setting_connection_code extends \admin_setting_configtext {
             );
         }
 
+        // Say what went wrong in words. The bare code read "code_replaced"
+        // for a workspace that had simply not made a connection code yet.
+        $reason = (string) ($last['reason'] ?? '');
+        if ($reason !== '' && get_string_manager()->string_exists('connectionreason_' . $reason, 'block_learnboard')) {
+            $reason = get_string('connectionreason_' . $reason, 'block_learnboard');
+        }
+
         return get_string(
             'connectioncode_status_failed',
             'block_learnboard',
-            (object) ['when' => $when, 'reason' => (string) ($last['reason'] ?? '')]
+            (object) ['when' => $when, 'reason' => $reason]
         );
     }
 }

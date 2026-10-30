@@ -4,6 +4,13 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.19] - 2026-10-31
+
+### Fixed
+- When saving a connection code does not connect, the settings page now says
+  why in words. A workspace that had not made a connection code yet was
+  reported as "code_replaced", which suggested the code had been changed.
+
 ## [1.1.18] - 2026-10-31
 
 ### Fixed
