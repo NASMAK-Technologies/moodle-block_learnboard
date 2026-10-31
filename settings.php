@@ -24,11 +24,22 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-// The block's own page ($settings, section "blocksettinglearnboard") carries the
-// connection, the data connector, sign-in and the menu entry. The connection
-// code and the role map are pages of their own beside it, as they were in the
-// connector plugin.
+// Three pages under Plugins, Blocks, in this order (LB-36): Connect to
+// LearnBoard, the one page an administrator needs; the block's own page
+// ($settings, section "blocksettinglearnboard"), now LearnBoard advanced
+// settings, with the connection details, data connector, sign-in and menu
+// entry, changed only if support asks; and the role map.
 if ($ADMIN->fulltree) {
+    $settings->add(new admin_setting_heading(
+        'block_learnboard/advancedintro',
+        '',
+        $OUTPUT->notification(get_string(
+            'advancedintro_desc',
+            'block_learnboard',
+            (new moodle_url('/admin/settings.php', ['section' => 'block_learnboard_connect']))->out(false)
+        ), 'info', false)
+    ));
+
     // Upgraded from the two-plugin version: say so once, next to the settings
     // it brought across, so an admin knows the old connector can go.
     if (\block_learnboard\migration::legacy_installed()) {
@@ -46,7 +57,7 @@ if ($ADMIN->fulltree) {
     ));
 
     // Absolute LearnBoard API base, e.g. https://learnboard.example.com/api/v1.
-    $settings->add(new admin_setting_configtext(
+    $settings->add(new \block_learnboard\admin\setting_guarded_configtext(
         'block_learnboard/apibase',
         get_string('apibase', 'block_learnboard'),
         get_string('apibase_desc', 'block_learnboard'),
@@ -55,7 +66,7 @@ if ($ADMIN->fulltree) {
     ));
 
     // Shared secret (X-Embed-Key) — never exposed to the browser.
-    $settings->add(new admin_setting_configpasswordunmask(
+    $settings->add(new \block_learnboard\admin\setting_guarded_configpasswordunmask(
         'block_learnboard/embedkey',
         get_string('embedkey', 'block_learnboard'),
         get_string('embedkey_desc', 'block_learnboard'),
@@ -63,7 +74,7 @@ if ($ADMIN->fulltree) {
     ));
 
     // The LearnBoard tenant this Moodle site maps to (1:1 for v1).
-    $settings->add(new admin_setting_configtext(
+    $settings->add(new \block_learnboard\admin\setting_guarded_configtext(
         'block_learnboard/tenant',
         get_string('tenant', 'block_learnboard'),
         get_string('tenant_desc', 'block_learnboard'),
@@ -108,14 +119,14 @@ if ($ADMIN->fulltree) {
         get_string('queryheading_desc', 'block_learnboard', (new moodle_url('/blocks/learnboard/query.php'))->out(false))
     ));
 
-    $settings->add(new admin_setting_configcheckbox(
+    $settings->add(new \block_learnboard\admin\setting_guarded_configcheckbox(
         'block_learnboard/queryenabled',
         get_string('queryenabled', 'block_learnboard'),
         get_string('queryenabled_desc', 'block_learnboard'),
         0
     ));
 
-    $settings->add(new admin_setting_configpasswordunmask(
+    $settings->add(new \block_learnboard\admin\setting_guarded_configpasswordunmask(
         'block_learnboard/querykey',
         get_string('querykey', 'block_learnboard'),
         get_string('querykey_desc', 'block_learnboard'),
@@ -156,7 +167,7 @@ if ($ADMIN->fulltree) {
     // Per-user SSO (#1): when on, charts render AS the logged-in user
     // (role-aware) and staff get a one-click "Open LearnBoard" full-app sign-in.
     // When off, everything renders as the shared read-only tenant reader.
-    $settings->add(new admin_setting_configcheckbox(
+    $settings->add(new \block_learnboard\admin\setting_guarded_configcheckbox(
         'block_learnboard/ssoenabled',
         get_string('ssoenabled', 'block_learnboard'),
         get_string('ssoenabled_desc', 'block_learnboard'),
@@ -171,27 +182,20 @@ if ($ADMIN->fulltree) {
     ));
 }
 
-// Order matters. Moodle writes a form's settings in tree order, and the page it
-// shows after an install lists every new setting on one form: the connection
-// code must be written after the detailed fields, or their old values would be
-// saved over what the code just set. Core would add $settings after this file
-// runs, which puts it last, so the main page is added here, first, and
-// $settings is cleared so it is not added twice.
+// Connect to LearnBoard first, then the advanced page, then the role map.
+// Moodle writes a form's settings in tree order, so on a form holding both
+// pages (admin search results) the advanced fields come after the code; the
+// ones a code fills in are guarded and leave the code's values alone (see
+// setting_guarded_configtext). Core would add $settings after this file runs,
+// so the pages are added here, in order, and $settings is cleared so it is
+// not added twice.
 if ($hassiteconfig) {
-    $ADMIN->add('blocksettings', $settings);
-
-    // Connect to LearnBoard: the one field an administrator fills in. Its own
-    // page, added after the detailed settings, for two reasons. Moodle writes
-    // a form's settings in order, so on a shared form the detailed fields
-    // saved after the code would put their old values back. And on the page
-    // Moodle shows straight after an install, which lists every new setting,
-    // this one is then written last.
+    // Connect to LearnBoard: the one field an administrator fills in. No
+    // heading title: the page is already called "Connect to LearnBoard", and
+    // the same words twice in a row read as a mistake. Steps 1 and 2 are drawn
+    // by the code field, with its own Save and connect inside step 2; step 3
+    // stays locked until the site connects (owner request, 23 Oct 2026).
     $connect = new admin_settingpage('block_learnboard_connect', get_string('connectioncode_heading', 'block_learnboard'));
-    // No heading title: the page is already called "Connect to LearnBoard",
-    // and the same words twice in a row read as a mistake.
-    // Steps 1 and 2 above the field, step 3 below it: taken in order, and
-    // step 3 stays locked until the site connects (owner request, 23 Oct 2026).
-    $connect->add(new \block_learnboard\admin\setting_connection_steps('block_learnboard/connectionsteps'));
     $connect->add(new \block_learnboard\admin\setting_connection_code(
         'block_learnboard/connectioncode',
         get_string('connectioncode', 'block_learnboard'),
@@ -201,6 +205,10 @@ if ($hassiteconfig) {
     // Step 3: where the dashboards are, and what comes with them.
     $connect->add(new \block_learnboard\admin\setting_connected_panel('block_learnboard/connectedpanel'));
     $ADMIN->add('blocksettings', $connect);
+
+    // The technical page: change only if support asks.
+    $settings->visiblename = get_string('advancedsettings', 'block_learnboard');
+    $ADMIN->add('blocksettings', $settings);
 
     // Configurable role mapping (#1): a dedicated page (dynamic dropdowns fetched
     // from LearnBoard, so it can't live as a static setting element).

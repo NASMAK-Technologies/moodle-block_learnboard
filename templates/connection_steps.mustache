@@ -17,24 +17,40 @@
 {{!
     @template block_learnboard/connection_steps
 
-    Steps 1 and 2 on "Connect to LearnBoard", one per row, above the code field.
+    The steps on "Connect to LearnBoard", one per row. Steps 1 and 2 come with
+    the connection code field inside step 2, its own Save and connect button
+    and the result; step 3, while locked, uses the same look.
+
+    The button wanted next carries block_learnboard-attention and pulses
+    (a steady ring with reduced motion). Pressing Open LearnBoard, or typing a
+    code, moves it on to Save and connect.
 
     Context variables required for this template:
+    * uniqid - Unique id for the list (optional, steps 1 and 2 only).
     * steps - Each with number, done, current, title, text, and optionally
-      linkurl and linktext (a button) or status (a line under the text).
+      link {url, text, attention}, field {id, name, value, label, help,
+      button, attention} and result {tone, ok, error, text, note}.
 
     Example context (json):
     {
+        "uniqid": "lbconnect1",
         "steps": [
             {"number": 1, "done": false, "current": true, "title": "Get your connection code",
-             "text": "In LearnBoard, open Admin, Data sources and make a code.",
-             "linkurl": "https://learnboard.learnoow.com/admin/data-sources", "linktext": "Open LearnBoard"},
-            {"number": 2, "done": false, "current": true, "title": "Paste it below and save",
-             "text": "Paste the code in the box below, then press Save changes.", "status": "Not connected with a code yet."}
+             "text": "Sign in to LearnBoard and make a connection code.",
+             "link": {"url": "https://learnboard.learnoow.com/admin/data-sources?from=moodle#connection-code",
+                      "text": "Open LearnBoard", "attention": true}
+            },
+            {"number": 2, "done": false, "current": true, "title": "Paste the code and connect",
+             "text": "Paste the code here, then press Save and connect.",
+             "field": {"id": "id_s_block_learnboard_connectioncode", "name": "s_block_learnboard_connectioncode",
+                       "value": "", "label": "Connection code", "help": "Starts with LBC1.",
+                       "button": "Save and connect", "attention": false},
+             "result": {"tone": "none", "ok": false, "error": false, "text": "Not connected yet.", "note": ""}
+            }
         ]
     }
 }}
-<ol class="block_learnboard-connected block_learnboard-steps">
+<ol class="block_learnboard-connected block_learnboard-steps"{{#uniqid}} id="{{uniqid}}"{{/uniqid}}>
     {{#steps}}
     <li class="block_learnboard-step{{#done}} block_learnboard-step--done{{/done}}{{#current}} block_learnboard-step--current{{/current}}">
         <span class="block_learnboard-connected__medallion{{#done}} block_learnboard-connected__medallion--done{{/done}}">
@@ -46,13 +62,63 @@
             </p>
             <div class="block_learnboard-step__title" role="heading" aria-level="3">{{title}}</div>
             <p class="block_learnboard-step__text">{{text}}</p>
-            {{#status}}<p class="block_learnboard-step__status">{{status}}</p>{{/status}}
-            {{#linkurl}}
-            <a class="btn block_learnboard-connected__primary" href="{{linkurl}}" target="_blank" rel="noopener">
-                {{linktext}} {{#pix}} i/externallink, core {{/pix}}
+            {{#link}}
+            <a class="btn block_learnboard-connected__primary{{#attention}} block_learnboard-attention{{/attention}}"
+                href="{{url}}" target="_blank" rel="noopener" data-lb-step="open">
+                {{text}} {{#pix}} i/externallink, core {{/pix}}
             </a>
-            {{/linkurl}}
+            {{/link}}
+            {{#field}}
+            <div class="block_learnboard-step__field">
+                <label class="block_learnboard-step__label" for="{{id}}">{{label}}</label>
+                <div class="block_learnboard-connected__linkrow">
+                    <input type="text" class="form-control block_learnboard-connected__link" id="{{id}}" name="{{name}}"
+                        value="{{value}}" autocomplete="off" spellcheck="false" placeholder="LBC1." data-lb-step="code"
+                        aria-describedby="{{id}}-help {{id}}-result">
+                    <button type="submit" class="btn block_learnboard-connected__primary{{#attention}} block_learnboard-attention{{/attention}}"
+                        data-lb-step="save">
+                        {{button}}
+                    </button>
+                </div>
+                <p class="block_learnboard-step__help" id="{{id}}-help">{{help}}</p>
+            </div>
+            {{/field}}
+            {{#result}}
+            <div class="block_learnboard-result block_learnboard-result--{{tone}}" id="{{#field}}{{id}}{{/field}}-result"
+                {{#error}}role="alert"{{/error}}{{^error}}role="status"{{/error}}>
+                {{#ok}}{{#pix}} i/checked, core {{/pix}}{{/ok}}{{#error}}{{#pix}} i/warning, core {{/pix}}{{/error}}
+                <span>{{text}}</span>
+            </div>
+            {{#note}}<p class="block_learnboard-step__help">{{note}}</p>{{/note}}
+            {{/result}}
         </div>
     </li>
     {{/steps}}
 </ol>
+{{#uniqid}}
+{{#js}}
+(function() {
+    var root = document.getElementById('{{uniqid}}');
+    if (!root) {
+        return;
+    }
+    var open = root.querySelector('[data-lb-step="open"]');
+    var save = root.querySelector('[data-lb-step="save"]');
+    var code = root.querySelector('[data-lb-step="code"]');
+    var next = function() {
+        if (open) {
+            open.classList.remove('block_learnboard-attention');
+        }
+        if (save) {
+            save.classList.add('block_learnboard-attention');
+        }
+    };
+    if (open) {
+        open.addEventListener('click', next);
+    }
+    if (code) {
+        code.addEventListener('input', next);
+    }
+})();
+{{/js}}
+{{/uniqid}}

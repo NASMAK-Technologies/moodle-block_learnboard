@@ -28,9 +28,11 @@ namespace block_learnboard\admin;
  * Tells a newly connected administrator where the dashboards are.
  *
  * Holds no value: it only shows, once the site is connected, this site's own
- * LearnBoard page link (to open or copy), how to put it in a menu on this
- * Moodle version, and that the workspace starts with an LMS Overview
- * dashboard that can be edited, alongside as many others as they like.
+ * LearnBoard page link, with one primary Open dashboards (it pulses until
+ * pressed, LB-39) and Copy link and Edit dashboards beside it, how to put it
+ * in a menu on this Moodle version, and that the workspace starts with an LMS
+ * Overview dashboard that can be edited, alongside as many others as they
+ * like. Hidden while LearnBoard no longer accepts this site.
  */
 class setting_connected_panel extends \admin_setting {
     /**
@@ -73,9 +75,13 @@ class setting_connected_panel extends \admin_setting {
     public function output_html($data, $query = '') {
         global $CFG, $OUTPUT;
 
-        $raw = get_config('block_learnboard', 'lastconnection');
-        $last = is_string($raw) ? json_decode($raw, true) : null;
-        if (!is_array($last) || empty($last['connected'])) {
+        $state = \block_learnboard\connection_status::current();
+        // LearnBoard no longer accepts this site (LB-45): steps 1 and 2 are
+        // open again and say why, and there are no dashboards to open.
+        if ($state['lost'] !== '') {
+            return '';
+        }
+        if (!$state['connected']) {
             return $OUTPUT->render_from_template('block_learnboard/connection_steps', [
                 'steps' => [[
                     'number' => 3,

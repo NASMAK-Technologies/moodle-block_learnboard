@@ -19,7 +19,9 @@
 
     Shown on "Connect to LearnBoard" once the site is connected: where the
     dashboards are, how to put them in a menu, and the dashboard the workspace
-    starts with.
+    starts with. One primary action, Open dashboards, which pulses until it
+    has been pressed once in this browser; Copy link and Edit dashboards sit
+    beside it as secondary actions.
 
     Context variables required for this template:
     * uniqid - Unique id for the link field.
@@ -35,7 +37,7 @@
         "menuhint": "LearnBoard is already in the top menu."
     }
 }}
-<div class="block_learnboard-connected" role="region" aria-labelledby="{{uniqid}}-title">
+<div class="block_learnboard-connected" role="region" aria-labelledby="{{uniqid}}-title" id="{{uniqid}}">
     <div class="block_learnboard-connected__head">
         <span class="block_learnboard-connected__medallion block_learnboard-connected__medallion--done">
             {{#pix}} i/checked, core {{/pix}}
@@ -51,10 +53,11 @@
         <p class="block_learnboard-connected__label">
             {{#pix}} i/dashboard, core {{/pix}} {{#str}} connectedlinklabel, block_learnboard {{/str}}
         </p>
-        <div class="block_learnboard-connected__linkrow">
-            <input type="text" readonly class="form-control block_learnboard-connected__link" id="{{uniqid}}-link"
-                value="{{dashboardurl}}" aria-label="{{#str}} connectedlinklabel, block_learnboard {{/str}}">
-            <a class="btn block_learnboard-connected__primary" href="{{dashboardurl}}" target="_blank" rel="noopener">
+        <input type="text" readonly class="form-control block_learnboard-connected__link block_learnboard-connected__link--full" id="{{uniqid}}-link"
+            value="{{dashboardurl}}" aria-label="{{#str}} connectedlinklabel, block_learnboard {{/str}}">
+        <div class="block_learnboard-connected__linkrow block_learnboard-connected__actions">
+            <a class="btn block_learnboard-connected__primary block_learnboard-attention" href="{{dashboardurl}}" target="_blank" rel="noopener"
+                data-lb-step="dashboards">
                 {{#str}} connectedopen, block_learnboard {{/str}} {{#pix}} i/externallink, core {{/pix}}
             </a>
             <button type="button" class="btn block_learnboard-connected__secondary"
@@ -62,6 +65,9 @@
                 data-clipboard-success-message="{{#str}} connectedcopied, block_learnboard {{/str}}">
                 {{#pix}} t/copy, core {{/pix}} {{#str}} connectedcopy, block_learnboard {{/str}}
             </button>
+            <a class="btn block_learnboard-connected__secondary" href="{{editurl}}" target="_blank" rel="noopener">
+                {{#pix}} i/edit, core {{/pix}} {{#str}} connectededit, block_learnboard {{/str}}
+            </a>
         </div>
     </div>
 
@@ -78,13 +84,33 @@
             <div>
                 <div class="block_learnboard-connected__tiletitle" role="heading" aria-level="4">{{#str}} connectedstarttitle, block_learnboard {{/str}}</div>
                 <p class="block_learnboard-connected__tiletext">{{#str}} connectedstarttext, block_learnboard {{/str}}</p>
-                <a class="block_learnboard-connected__textlink" href="{{editurl}}" target="_blank" rel="noopener">
-                    {{#str}} connectededit, block_learnboard {{/str}} {{#pix}} i/externallink, core {{/pix}}
-                </a>
             </div>
         </div>
     </div>
 </div>
 {{#js}}
 require(['core/copy_to_clipboard']);
+(function() {
+    var root = document.getElementById('{{uniqid}}');
+    var open = root ? root.querySelector('[data-lb-step="dashboards"]') : null;
+    if (!open) {
+        return;
+    }
+    var key = 'block_learnboard.dashboardsopened';
+    try {
+        if (window.localStorage.getItem(key) === '1') {
+            open.classList.remove('block_learnboard-attention');
+        }
+    } catch (e) {
+        // Storage blocked: the button keeps pulsing until pressed.
+    }
+    open.addEventListener('click', function() {
+        open.classList.remove('block_learnboard-attention');
+        try {
+            window.localStorage.setItem(key, '1');
+        } catch (e) {
+            // Nothing to remember it in; it stops for this visit.
+        }
+    });
+})();
 {{/js}}

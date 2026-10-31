@@ -45,10 +45,11 @@ figures can be read from that site yet.
 1. Install the ZIP through *Site administration > Plugins > Install plugins*,
    or copy this folder to `blocks/learnboard`.
 2. Visit *Site administration > Notifications* to finish the install.
-3. In LearnBoard, go to *Admin > Data sources*, add a Moodle plugin source, and
-   copy the **connection code** it shows you.
-4. In Moodle, open *Site administration > Plugins > Blocks > Connect to
-   LearnBoard*, paste the code, and save.
+3. In Moodle, open *Site administration > Plugins > Blocks > Connect to
+   LearnBoard* and press **Open LearnBoard**. It opens *Admin > Data sources*
+   in LearnBoard, where you make a **connection code** and copy it.
+4. Back in Moodle, paste the code in step 2 and press **Save and connect**.
+   The result shows right under the box.
 
 That is the whole setup. LearnBoard tests the connection immediately and tells
 you if anything is wrong.
@@ -99,7 +100,7 @@ the site administrator can see exactly what was asked and when.
 
 | Setting | What it does |
 | --- | --- |
-| Connection code | Paste the code LearnBoard shows under *Data sources*. It carries the address and the shared secret, so there is nothing else to type. |
+| Connection code | On *Connect to LearnBoard*. Paste the code LearnBoard shows under *Data sources* and press Save and connect. It carries the address and the shared secret, so there is nothing else to type. Everything below is on *LearnBoard advanced settings*. |
 | Allow LearnBoard to read data through the plugin | The master switch for the data connector. Off, and `query.php` answers nothing. |
 | LearnBoard server addresses | Optional. Restricts which IP addresses may ask at all. |
 | Requests to answer at once | How many LearnBoard queries this site will run concurrently. Lower it if the site is busy. |

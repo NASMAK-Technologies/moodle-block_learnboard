@@ -255,3 +255,107 @@
 .block_learnboard-connected .block_learnboard-step .block_learnboard-connected__primary {
     margin-top: .75rem;
 }
+
+/* The code field inside step 2, with its own Save and connect (LB-36). */
+.block_learnboard-connected .block_learnboard-step__field {
+    margin-top: .75rem;
+}
+
+.block_learnboard-connected .block_learnboard-step__label {
+    display: block;
+    margin: 0 0 .35rem;
+    font-weight: 600;
+    color: var(--lbc-text);
+}
+
+.block_learnboard-connected .block_learnboard-step__help {
+    margin: .35rem 0 0;
+    font-size: .85rem;
+    color: var(--lbc-text-soft);
+}
+
+.block_learnboard-connected .block_learnboard-step__field .block_learnboard-connected__primary {
+    margin-top: 0;
+}
+
+/* The result of the last save, right under the field: green when connected,
+   red with the reason when not. */
+.block_learnboard-connected .block_learnboard-result {
+    display: flex;
+    gap: .5rem;
+    align-items: flex-start;
+    margin-top: .75rem;
+    padding: .6rem .8rem;
+    border-radius: 10px;
+    border: 1px solid var(--lbc-border);
+    background: var(--lbc-subtle);
+    color: var(--lbc-text);
+    font-weight: 600;
+}
+
+.block_learnboard-connected .block_learnboard-result .icon {
+    margin: .1rem 0 0;
+}
+
+.block_learnboard-connected .block_learnboard-result--ok {
+    border-color: #9fd8c2;
+    background: #ecf8f2;
+    color: #14583e;
+}
+
+.block_learnboard-connected .block_learnboard-result--error {
+    border-color: #f0b4b4;
+    background: #fdf0f0;
+    color: #8a1f1f;
+}
+
+[data-bs-theme="dark"] .block_learnboard-connected .block_learnboard-result--ok {
+    border-color: #2c6b52;
+    background: #10261d;
+    color: #a6e4c9;
+}
+
+[data-bs-theme="dark"] .block_learnboard-connected .block_learnboard-result--error {
+    border-color: #7a2c2c;
+    background: #2a1212;
+    color: #f4b8b8;
+}
+
+.block_learnboard-connected .block_learnboard-connected__link--full {
+    width: 100%;
+}
+
+.block_learnboard-connected .block_learnboard-connected__actions {
+    margin-top: .6rem;
+}
+
+/* One pulsing button at a time: the one wanted next (LB-39). The same slow
+   fade as LearnBoard's own .lb-attention, and a steady ring instead when
+   motion is reduced. */
+@keyframes block_learnboard-attention {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(58, 169, 172, .45);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(58, 169, 172, 0);
+    }
+}
+
+.block_learnboard-connected .block_learnboard-attention {
+    animation: block_learnboard-attention 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .block_learnboard-connected .block_learnboard-attention {
+        animation: none;
+        box-shadow: 0 0 0 3px rgba(58, 169, 172, .35);
+    }
+}
+
+/* Connect to LearnBoard saves with its own Save and connect inside step 2, so
+   Moodle's Save changes, drawn below step 3, is not shown there. */
+#page-admin-setting-block_learnboard_connect #adminsettings button[type="submit"]:not([data-lb-step]),
+#page-admin-setting-block_learnboard_connect #adminsettings > .settingsform > .row:last-child {
+    display: none;
+}

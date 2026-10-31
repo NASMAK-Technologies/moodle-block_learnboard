@@ -300,6 +300,113 @@ class client {
     }
 
     /**
+     * Asks LearnBoard whether it still accepts this site (LB-45): whether the
+     * embed key still opens the workspace, and whether the site is still one
+     * of its data sources. Connect to LearnBoard shows the answer, through
+     * {@see connection_status}, which keeps it for a minute.
+     *
+     * @return array{state: string, active: bool, siteconnected: bool} state is
+     *     ok, missing (no longer a data source), revoked (the key is refused),
+     *     pending_deletion, unknown (this LearnBoard cannot say) or unreachable
+     */
+    public static function probe_status(): array {
+        global $CFG;
+
+        $path = '/embed/status?tenant=' . rawurlencode(self::tenant())
+            . '&site_url=' . rawurlencode(rtrim((string) $CFG->wwwroot, '/'));
+        list($code, $data) = self::request('GET', $path, null, 8);
+        $out = ['state' => 'unreachable', 'active' => false, 'siteconnected' => false];
+
+        if ($code === 401) {
+            $out['state'] = 'revoked';
+        } else if ($code === 200 && is_array($data['data'] ?? null)) {
+            $body = $data['data'];
+            if (!empty($body['pending_deletion'])) {
+                $out['state'] = 'pending_deletion';
+            } else if (!empty($body['site_checked']) && !is_array($body['site'] ?? null)) {
+                $out['state'] = 'missing';
+            } else {
+                $out['state'] = 'ok';
+                $out['active'] = !empty($body['site']['active']);
+                $out['siteconnected'] = !empty($body['site']['connected']);
+            }
+        } else if ($code === 404) {
+            $out['state'] = 'unknown';
+        } else if ($code === -1) {
+            $out['state'] = 'not_configured';
+        }
+
+        return $out;
+    }
+
+    /**
+     * Link page (LB-44): whose LearnBoard account a link request would link.
+     *
+     * @param string $state the state LearnBoard put in the link
+     * @return array{0: int, 1: array|null} HTTP status and the reply's data
+     */
+    public static function link_describe(string $state): array {
+        list($code, $data) = self::request('POST', '/embed/link/describe', ['tenant' => self::tenant(), 'state' => $state]);
+
+        return [$code, is_array($data['data'] ?? null) ? $data['data'] : null];
+    }
+
+    /**
+     * Link page (LB-44): vouch for the signed-in Moodle person, who pressed
+     * Continue. LearnBoard hands back the code the browser takes back to it.
+     *
+     * @param string $state the state LearnBoard put in the link
+     * @param array $user external_id, name and source of the Moodle person
+     * @return array{0: int, 1: array|null} HTTP status and the reply's data
+     */
+    public static function link_confirm(string $state, array $user): array {
+        list($code, $data) = self::request(
+            'POST',
+            '/embed/link/confirm',
+            ['tenant' => self::tenant(), 'state' => $state, 'user' => $user]
+        );
+
+        return [$code, is_array($data['data'] ?? null) ? $data['data'] : null];
+    }
+
+    /**
+     * A server-to-server call to the LearnBoard embed API with the embed key,
+     * answering the status as well as the body.
+     *
+     * @param string $method GET or POST
+     * @param string $path path and query under the API address
+     * @param array|null $payload JSON body for a POST
+     * @param int $timeout seconds
+     * @return array{0: int, 1: array|null} HTTP status (0 unreachable, -1 not
+     *     configured) and the decoded reply
+     */
+    private static function request(string $method, string $path, ?array $payload = null, int $timeout = 15): array {
+        global $CFG;
+
+        $key = (string) get_config('block_learnboard', 'embedkey');
+        $apibase = self::apibase();
+        if ($key === '' || $apibase === '' || self::tenant() === '' || !self::apibase_is_safe()) {
+            return [-1, null];
+        }
+
+        require_once($CFG->libdir . '/filelib.php');
+        $curl = new \curl();
+        $curl->setHeader(['Content-Type: application/json', 'Accept: application/json', 'X-Embed-Key: ' . $key]);
+        $curl->setopt(['CURLOPT_TIMEOUT' => $timeout, 'CURLOPT_CONNECTTIMEOUT' => min(10, $timeout)]);
+        if ((int) get_config('block_learnboard', 'insecuressl') === 1) {
+            $curl->setopt(['CURLOPT_SSL_VERIFYPEER' => 0, 'CURLOPT_SSL_VERIFYHOST' => 0]);
+        }
+
+        $response = $method === 'GET'
+            ? $curl->get($apibase . $path)
+            : $curl->post($apibase . $path, json_encode($payload));
+        $code = (int) ($curl->get_info()['http_code'] ?? 0);
+        $data = json_decode((string) $response, true);
+
+        return [$code, is_array($data) ? $data : null];
+    }
+
+    /**
      * List the tenant's shareable (tenant-visible) LearnBoard dashboards for the
      * block's "link a dashboard" picker. Mints a read-only token, calls
      * GET /embed/dashboards, and returns an id => name map (empty on any

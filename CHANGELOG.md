@@ -4,6 +4,37 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.20] - 2026-10-31
+
+### Changed
+- Connect to LearnBoard now comes first under Plugins, Blocks. The page with
+  the technical fields is called LearnBoard advanced settings and says to
+  change them only if LearnBoard support asks.
+- Step 1 is one button, Open LearnBoard, that goes straight to the place in
+  LearnBoard where the connection code is made. Step 2 holds the code box
+  with its own Save and connect button, and the result shows right under it,
+  in green when the site connected and in red with the reason when it did
+  not. Step 3 has one main button, Open dashboards, with Copy link and Edit
+  dashboards beside it.
+- The button to press next pulses gently: Open LearnBoard, then Save and
+  connect, then Open dashboards. With reduced motion it is marked with a
+  steady ring instead.
+- The help on the advanced page now points to the connection code instead of
+  describing keys typed in by hand.
+
+### Fixed
+- Connect to LearnBoard no longer says "You're connected" after the
+  LearnBoard workspace was deleted or given a new code. The page asks
+  LearnBoard each time it is opened (the answer is kept for a minute). When
+  LearnBoard no longer accepts the site, steps 1 and 2 open again and say so.
+
+### Added
+- A person can link their Moodle account to their own LearnBoard account,
+  started from Profile and account in LearnBoard and confirmed here on
+  blocks/learnboard/link.php. Opening LearnBoard from Moodle then signs them
+  in as that account, with the role it has in LearnBoard, instead of a
+  separate account made for their Moodle user.
+
 ## [1.1.19] - 2026-10-31
 
 ### Fixed
