@@ -82,6 +82,9 @@ class ssouser {
             // sent for LearnBoard's backward-compatible fallback + audit.
             'lb_roles' => self::lb_roles(),
             'source' => $CFG->wwwroot,
+            // "Log in as": LearnBoard never opens a full session for it, nor a
+            // person's own linked LearnBoard account (1.1.21).
+            'loginas' => \core\session\manager::is_loggedinas(),
         ];
     }
 

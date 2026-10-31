@@ -205,10 +205,11 @@ class client {
      * LearnBoard reads from this site with the connector key to prove the
      * address, then creates or updates its data source.
      *
+     * @param string $sitekeynonce the one-time value LearnBoard returns with the site key
      * @return array{connected: bool, active: bool, reason: string} what LearnBoard reported,
      *     or reason set to a short code when the call itself failed
      */
-    public static function register_site(): array {
+    public static function register_site(string $sitekeynonce = ''): array {
         global $CFG;
 
         $key = (string) get_config('block_learnboard', 'embedkey');
@@ -231,6 +232,8 @@ class client {
             'tenant' => self::tenant(),
             'site_url' => rtrim((string) $CFG->wwwroot, '/'),
             'plugin_version' => $version,
+            // LearnBoard sends it back with this site's own key (1.1.21).
+            'site_key_nonce' => $sitekeynonce,
         ]));
         $code = (int) ($curl->get_info()['http_code'] ?? 0);
         $data = json_decode((string) $response, true);
@@ -243,7 +246,7 @@ class client {
             ];
         }
 
-        $reasons = [0 => 'unreachable', 401 => 'code_not_accepted', 409 => 'no_connection_code', 422 => 'address_not_allowed', 429 => 'too_many_attempts'];
+        $reasons = [0 => 'unreachable', 401 => 'code_not_accepted', 403 => 'site_key_refused', 409 => 'no_connection_code', 422 => 'address_not_allowed', 429 => 'too_many_attempts'];
 
         return ['connected' => false, 'active' => false, 'reason' => $reasons[$code] ?? ('http_' . $code)];
     }
@@ -273,11 +276,11 @@ class client {
         // A LearnBoard on a private network is allowed by the site admin in
         // Site administration > Security > HTTP security.
         $curl = new \curl();
-        $curl->setHeader([
+        $curl->setHeader(self::headers([
             'Content-Type: application/json',
             'Accept: application/json',
             'X-Embed-Key: ' . $key,
-        ]);
+        ]));
         $curl->setopt(['CURLOPT_TIMEOUT' => 15, 'CURLOPT_CONNECTTIMEOUT' => 10]);
 
         // Allow a self-signed / private CA for local + on-prem installs, opt-in
@@ -391,7 +394,7 @@ class client {
 
         require_once($CFG->libdir . '/filelib.php');
         $curl = new \curl();
-        $curl->setHeader(['Content-Type: application/json', 'Accept: application/json', 'X-Embed-Key: ' . $key]);
+        $curl->setHeader(self::headers(['Content-Type: application/json', 'Accept: application/json', 'X-Embed-Key: ' . $key]));
         $curl->setopt(['CURLOPT_TIMEOUT' => $timeout, 'CURLOPT_CONNECTTIMEOUT' => min(10, $timeout)]);
         if ((int) get_config('block_learnboard', 'insecuressl') === 1) {
             $curl->setopt(['CURLOPT_SSL_VERIFYPEER' => 0, 'CURLOPT_SSL_VERIFYHOST' => 0]);
@@ -485,6 +488,26 @@ class client {
     }
 
     /**
+     * The headers given, plus this site's own key when it holds one.
+     *
+     * The workspace's embed key is shared by every Moodle site connected to
+     * the workspace. When this site registers, LearnBoard hands it a key of
+     * its own through query.php, at this site's address, and LearnBoard knows
+     * the calling site from it, so no other site can speak for this one.
+     *
+     * @param string[] $headers
+     * @return string[]
+     */
+    private static function headers(array $headers): array {
+        $sitekey = (string) get_config('block_learnboard', 'sitekey');
+        if (preg_match('/^[a-f0-9]{64}$/', $sitekey)) {
+            $headers[] = 'X-Site-Key: ' . $sitekey;
+        }
+
+        return $headers;
+    }
+
+    /**
      * The LearnBoard app's address: the API address without its /api/vN.
      */
     public static function appbase(): string {
@@ -517,10 +540,10 @@ class client {
         require_once($CFG->libdir . '/filelib.php');
 
         $curl = new \curl();
-        $curl->setHeader([
+        $curl->setHeader(self::headers([
             'Accept: application/json',
             'X-Embed-Key: ' . $key,
-        ]);
+        ]));
         $curl->setopt(['CURLOPT_TIMEOUT' => 15, 'CURLOPT_CONNECTTIMEOUT' => 10]);
 
         if ((int) get_config('block_learnboard', 'insecuressl') === 1) {

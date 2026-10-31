@@ -4,6 +4,19 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.21] - 2026-10-31
+
+### Security
+- Each site now gets a key of its own from LearnBoard when it connects,
+  handed to it through the data connector at its own address, and sends it
+  with every call to LearnBoard. LearnBoard tells the sites of one workspace
+  apart by it, so one site can never sign in people for another. The site
+  takes the key only while it is registering, with a one-time value it sent
+  LearnBoard, and only once (cli/sitekey_check.php).
+- Opening LearnBoard from Moodle is refused while an administrator is logged
+  in as another user, and LearnBoard never opens a person's own linked
+  account for "Log in as".
+
 ## [1.1.20] - 2026-10-31
 
 ### Changed

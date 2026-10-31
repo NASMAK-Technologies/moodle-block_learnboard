@@ -207,7 +207,7 @@ if (random_int(1, 50) === 1) {
 }
 
 $request = json_decode($raw, true);
-if (!is_array($request) || ($request['v'] ?? null) !== 1 || !in_array($request['op'] ?? '', ['ping', 'query'], true)) {
+if (!is_array($request) || ($request['v'] ?? null) !== 1 || !in_array($request['op'] ?? '', ['ping', 'query', 'sitekey'], true)) {
     block_learnboard_query_respond(400, ['error' => 'bad_request'], $key, $nonce);
 }
 
@@ -216,6 +216,26 @@ if (!is_array($request) || ($request['v'] ?? null) !== 1 || !in_array($request['
 // again, so the reader gets a slower card rather than a broken one. Ping is
 // exempt: it is the health check, it does no work, and refusing it would have
 // LearnBoard report a healthy site as down.
+// LearnBoard hands this site a key of its own while the site registers, here,
+// at this site's address, signed like every request (1.1.21). The site sends
+// it with its embed calls, so LearnBoard knows which site is calling. It is
+// stored in the plugin settings, which the query check never lets out.
+//
+// The connector key is the workspace's and every site of the workspace holds
+// it, so a signature alone could come from another of those sites. The
+// hand-over is therefore taken only while this site is registering, with the
+// one-time value it sent LearnBoard (classes/query/sitekey.php), and once.
+if ($request['op'] === 'sitekey') {
+    $audit['op'] = 'sitekey';
+    $pending = (string) (get_config('block_learnboard', 'sitekeypending') ?: '');
+    if (!\block_learnboard\query\sitekey::accept($pending, $request['nonce'] ?? null, $request['key'] ?? null, time())) {
+        block_learnboard_query_respond(403, ['error' => 'no_registration_pending'], $key, $nonce);
+    }
+    unset_config('sitekeypending', 'block_learnboard');
+    set_config('sitekey', (string) $request['key'], 'block_learnboard');
+    block_learnboard_query_respond(200, ['stored' => true], $key, $nonce);
+}
+
 if ($request['op'] === 'query') {
     $configured = get_config('block_learnboard', 'maxconcurrent');
     // Never configured, on a site upgraded from a version without this: 8.

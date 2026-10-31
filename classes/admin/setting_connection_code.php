@@ -106,6 +106,14 @@ class setting_connection_code extends \admin_setting_configtext {
             return get_string('connectioncode_invalid', 'block_learnboard');
         }
 
+        // A code for another LearnBoard or another workspace: the site key
+        // belonged to the old one. For the same workspace it is kept until
+        // LearnBoard hands over the new one, so a registration that fails
+        // midway leaves the site working as it was.
+        if ($decoded['api'] !== \block_learnboard\client::apibase() || $decoded['ws'] !== \block_learnboard\client::tenant()) {
+            unset_config('sitekey', 'block_learnboard');
+        }
+
         self::$applied = true;
         set_config('apibase', $decoded['api'], 'block_learnboard');
         set_config('tenant', $decoded['ws'], 'block_learnboard');
@@ -118,7 +126,13 @@ class setting_connection_code extends \admin_setting_configtext {
         // Each person now sees only their own groups; an admin can turn it off.
         set_config('ssoenabled', 1, 'block_learnboard');
 
-        $result = \block_learnboard\client::register_site();
+        // LearnBoard hands this site a new key through query.php while it
+        // registers, and only with the one-time value sent with the
+        // registration (classes/query/sitekey.php).
+        list($pending, $stored) = \block_learnboard\query\sitekey::pending(time());
+        set_config('sitekeypending', $stored, 'block_learnboard');
+        $result = \block_learnboard\client::register_site($pending);
+        unset_config('sitekeypending', 'block_learnboard');
         set_config('lastconnection', json_encode($result + ['time' => time()]), 'block_learnboard');
         connection_status::forget();
 

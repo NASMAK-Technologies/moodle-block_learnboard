@@ -42,6 +42,12 @@ if (!\block_learnboard\ssouser::enabled()) {
     throw new \moodle_exception('ssonotavailable', 'block_learnboard');
 }
 
+// An administrator logged in as somebody else is not that person: no full
+// LearnBoard session, and never the person's own linked account (1.1.21).
+if (\core\session\manager::is_loggedinas()) {
+    throw new \moodle_exception('ssologinas', 'block_learnboard');
+}
+
 $assertion = \block_learnboard\ssouser::assertion();
 $url = $assertion !== null ? \block_learnboard\client::login_url($assertion) : null;
 
