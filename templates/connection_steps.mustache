@@ -28,7 +28,7 @@
     Context variables required for this template:
     * uniqid - Unique id for the list (optional, steps 1 and 2 only).
     * steps - Each with number, done, current, title, text, and optionally
-      link {url, text, attention}, field {id, name, value, label, help,
+      link {url, text, attention}, signup {prompt, url, text}, field {id, name, value, label, help,
       button, attention} and result {tone, ok, error, text, note}.
 
     Example context (json):
@@ -38,7 +38,9 @@
             {"number": 1, "done": false, "current": true, "title": "Get your connection code",
              "text": "Sign in to LearnBoard and make a connection code.",
              "link": {"url": "https://learnboard.learnoow.com/admin/data-sources?from=moodle#connection-code",
-                      "text": "Open LearnBoard", "attention": true}
+                      "text": "Open LearnBoard", "attention": true},
+             "signup": {"prompt": "New to LearnBoard?", "text": "Create a free workspace",
+                        "url": "https://learnboard.learnoow.com/signup?next=%2Fadmin%2Fdata-sources%3Ffrom%3Dmoodle"}
             },
             {"number": 2, "done": false, "current": true, "title": "Paste the code and connect",
              "text": "Paste the code here, then press Save and connect.",
@@ -68,6 +70,12 @@
                 {{text}} {{#pix}} i/externallink, core {{/pix}}
             </a>
             {{/link}}
+            {{#signup}}
+            <p class="block_learnboard-step__help">
+                {{prompt}}
+                <a href="{{url}}" target="_blank" rel="noopener" data-lb-step="signup">{{text}} {{#pix}} i/externallink, core {{/pix}}</a>
+            </p>
+            {{/signup}}
             {{#field}}
             <div class="block_learnboard-step__field">
                 <label class="block_learnboard-step__label" for="{{id}}">{{label}}</label>
@@ -103,6 +111,7 @@
         return;
     }
     var open = root.querySelector('[data-lb-step="open"]');
+    var signup = root.querySelector('[data-lb-step="signup"]');
     var save = root.querySelector('[data-lb-step="save"]');
     var code = root.querySelector('[data-lb-step="code"]');
     var next = function() {
@@ -115,6 +124,9 @@
     };
     if (open) {
         open.addEventListener('click', next);
+    }
+    if (signup) {
+        signup.addEventListener('click', next);
     }
     if (code) {
         code.addEventListener('input', next);

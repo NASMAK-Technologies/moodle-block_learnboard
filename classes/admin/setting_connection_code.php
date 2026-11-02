@@ -176,6 +176,14 @@ class setting_connection_code extends \admin_setting_configtext {
                         'text' => get_string('connectstep1_link', 'block_learnboard'),
                         'attention' => !$savenext,
                     ],
+                    // Somebody who installed from the Marketplace may never
+                    // have seen LearnBoard. An install on its own address
+                    // decides for itself whether anyone may sign up.
+                    'signup' => ($connected || $app !== self::DEFAULT_APP) ? null : [
+                        'prompt' => get_string('connectstep1_new', 'block_learnboard'),
+                        'url' => $app . '/signup?next=' . rawurlencode('/admin/data-sources?from=moodle'),
+                        'text' => get_string('connectstep1_signup', 'block_learnboard'),
+                    ],
                 ],
                 [
                     'number' => 2,

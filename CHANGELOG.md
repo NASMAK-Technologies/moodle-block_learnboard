@@ -4,6 +4,14 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.22] - 2026-11-02
+
+### Added
+- Connect to LearnBoard now offers "New to LearnBoard? Create a free workspace"
+  under Open LearnBoard, for someone who installed the plugin without ever
+  having seen LearnBoard. After confirming their email they go straight to
+  the connection code, with the download and install steps marked done.
+
 ## [1.1.21] - 2026-10-31
 
 ### Security
