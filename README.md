@@ -143,7 +143,7 @@ LearnBoard sees the viewer's IP address and browser, as any website does. See
 
 - Issues and source: https://github.com/NASMAK-Technologies/moodle-block_learnboard
 - Documentation: https://www.learnoow.com/moodle-plugin
-- Email: info@nasmak.com.au
+- Email: support@learnoow.com
 
 ## Licence
 
