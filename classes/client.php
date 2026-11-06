@@ -205,11 +205,16 @@ class client {
      * LearnBoard reads from this site with the connector key to prove the
      * address, then creates or updates its data source.
      *
+     * With $saver, LearnBoard also links that Moodle administrator to the
+     * LearnBoard account that made the code, once, so the person who set the
+     * site up has one account (1.1.23).
+     *
      * @param string $sitekeynonce the one-time value LearnBoard returns with the site key
+     * @param \stdClass|null $saver the Moodle administrator saving the code, or null
      * @return array{connected: bool, active: bool, reason: string} what LearnBoard reported,
      *     or reason set to a short code when the call itself failed
      */
-    public static function register_site(string $sitekeynonce = ''): array {
+    public static function register_site(string $sitekeynonce = '', ?\stdClass $saver = null): array {
         global $CFG;
 
         $key = (string) get_config('block_learnboard', 'embedkey');
@@ -228,13 +233,21 @@ class client {
             $curl->setopt(['CURLOPT_SSL_VERIFYPEER' => 0, 'CURLOPT_SSL_VERIFYHOST' => 0]);
         }
 
-        $response = $curl->post($apibase . '/embed/register', json_encode([
+        $payload = [
             'tenant' => self::tenant(),
             'site_url' => rtrim((string) $CFG->wwwroot, '/'),
             'plugin_version' => $version,
             // LearnBoard sends it back with this site's own key (1.1.21).
             'site_key_nonce' => $sitekeynonce,
-        ]));
+        ];
+        if ($saver !== null && !empty($saver->id)) {
+            $payload['user'] = [
+                'external_id' => (string) (int) $saver->id,
+                'name' => fullname($saver),
+                'loginas' => \core\session\manager::is_loggedinas(),
+            ];
+        }
+        $response = $curl->post($apibase . '/embed/register', json_encode($payload));
         $code = (int) ($curl->get_info()['http_code'] ?? 0);
         $data = json_decode((string) $response, true);
 

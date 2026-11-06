@@ -4,6 +4,18 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.23] - 2026-11-06
+
+### Changed
+- Saving the connection code now also tells LearnBoard which Moodle
+  administrator saved it. LearnBoard then asks the person who made the code
+  whether that Moodle account is theirs, and links the two with one press,
+  so the person who set the site up has one account whatever their two
+  email addresses. Nothing is linked until they say yes. It is sent once per
+  code, only from a signed-in administrator in the browser, and never while
+  "logged in as" somebody else. The link can be undone in LearnBoard,
+  Profile and account.
+
 ## [1.1.22] - 2026-11-02
 
 ### Added

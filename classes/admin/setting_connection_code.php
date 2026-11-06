@@ -88,7 +88,7 @@ class setting_connection_code extends \admin_setting_configtext {
      * @return string empty on success, or the error shown under the field
      */
     public function write_setting($data) {
-        global $CFG;
+        global $CFG, $USER;
 
         $data = trim((string) $data);
         if ($data === '') {
@@ -131,7 +131,13 @@ class setting_connection_code extends \admin_setting_configtext {
         // registration (classes/query/sitekey.php).
         list($pending, $stored) = \block_learnboard\query\sitekey::pending(time());
         set_config('sitekeypending', $stored, 'block_learnboard');
-        $result = \block_learnboard\client::register_site($pending);
+        // The administrator saving the code in the browser is, almost always,
+        // the person who made it in LearnBoard: LearnBoard links the two
+        // accounts once (1.1.23). Never from the command line or a session
+        // "logged in as" somebody else.
+        $saver = (!CLI_SCRIPT && isloggedin() && !isguestuser() && is_siteadmin($USER)
+            && !\core\session\manager::is_loggedinas()) ? $USER : null;
+        $result = \block_learnboard\client::register_site($pending, $saver);
         unset_config('sitekeypending', 'block_learnboard');
         set_config('lastconnection', json_encode($result + ['time' => time()]), 'block_learnboard');
         connection_status::forget();
