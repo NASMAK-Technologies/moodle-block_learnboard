@@ -27,6 +27,10 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+// This check runs without a Moodle install on purpose, so it does not include
+// config.php. It defines MOODLE_INTERNAL itself only so the class loads, and
+// it refuses to run anywhere but the command line.
+// phpcs:disable moodle.Files.MoodleInternal.MoodleInternalGlobalState
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit;
@@ -39,7 +43,7 @@ use block_learnboard\query\sitekey;
 
 $now = 1793400000;
 $key = str_repeat('ab', 32);
-list($nonce, $stored) = sitekey::pending($now);
+[$nonce, $stored] = sitekey::pending($now);
 
 $cases = [
     'pending value, in time' => [true, sitekey::accept($stored, $nonce, $key, $now + 60)],

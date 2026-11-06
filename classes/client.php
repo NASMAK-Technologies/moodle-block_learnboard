@@ -259,7 +259,14 @@ class client {
             ];
         }
 
-        $reasons = [0 => 'unreachable', 401 => 'code_not_accepted', 403 => 'site_key_refused', 409 => 'no_connection_code', 422 => 'address_not_allowed', 429 => 'too_many_attempts'];
+        $reasons = [
+            0 => 'unreachable',
+            401 => 'code_not_accepted',
+            403 => 'site_key_refused',
+            409 => 'no_connection_code',
+            422 => 'address_not_allowed',
+            429 => 'too_many_attempts',
+        ];
 
         return ['connected' => false, 'active' => false, 'reason' => $reasons[$code] ?? ('http_' . $code)];
     }
@@ -330,7 +337,7 @@ class client {
 
         $path = '/embed/status?tenant=' . rawurlencode(self::tenant())
             . '&site_url=' . rawurlencode(rtrim((string) $CFG->wwwroot, '/'));
-        list($code, $data) = self::request('GET', $path, null, 8);
+        [$code, $data] = self::request('GET', $path, null, 8);
         $out = ['state' => 'unreachable', 'active' => false, 'siteconnected' => false];
 
         if ($code === 401) {
@@ -362,7 +369,7 @@ class client {
      * @return array{0: int, 1: array|null} HTTP status and the reply's data
      */
     public static function link_describe(string $state): array {
-        list($code, $data) = self::request('POST', '/embed/link/describe', ['tenant' => self::tenant(), 'state' => $state]);
+        [$code, $data] = self::request('POST', '/embed/link/describe', ['tenant' => self::tenant(), 'state' => $state]);
 
         return [$code, is_array($data['data'] ?? null) ? $data['data'] : null];
     }
@@ -376,7 +383,7 @@ class client {
      * @return array{0: int, 1: array|null} HTTP status and the reply's data
      */
     public static function link_confirm(string $state, array $user): array {
-        list($code, $data) = self::request(
+        [$code, $data] = self::request(
             'POST',
             '/embed/link/confirm',
             ['tenant' => self::tenant(), 'state' => $state, 'user' => $user]

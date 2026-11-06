@@ -104,7 +104,7 @@ function block_learnboard_link_reason(int $code): string {
 if ($confirm) {
     require_sesskey();
 
-    list($code, $data) = \block_learnboard\client::link_confirm($state, [
+    [$code, $data] = \block_learnboard\client::link_confirm($state, [
         'external_id' => (string) $USER->id,
         'name' => fullname($USER),
         'source' => rtrim((string) $CFG->wwwroot, '/'),
@@ -117,7 +117,7 @@ if ($confirm) {
     block_learnboard_link_stop(block_learnboard_link_reason($code), $cancel);
 }
 
-list($code, $about) = \block_learnboard\client::link_describe($state);
+[$code, $about] = \block_learnboard\client::link_describe($state);
 if ($code !== 200 || !is_array($about) || !is_array($about['account'] ?? null)) {
     block_learnboard_link_stop(block_learnboard_link_reason($code), $cancel);
 }

@@ -129,7 +129,7 @@ class setting_connection_code extends \admin_setting_configtext {
         // LearnBoard hands this site a new key through query.php while it
         // registers, and only with the one-time value sent with the
         // registration (classes/query/sitekey.php).
-        list($pending, $stored) = \block_learnboard\query\sitekey::pending(time());
+        [$pending, $stored] = \block_learnboard\query\sitekey::pending(time());
         set_config('sitekeypending', $stored, 'block_learnboard');
         // The administrator saving the code in the browser is, almost always,
         // the person who made it in LearnBoard: LearnBoard links the two
