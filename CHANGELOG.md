@@ -15,6 +15,9 @@ and the version numbers follow [Semantic Versioning](https://semver.org).
   code, only from a signed-in administrator in the browser, and never while
   "logged in as" somebody else. The link can be undone in LearnBoard,
   Profile and account.
+- Role mapping now says that Moodle site administrators are Admins in
+  LearnBoard, for everything except the plan and payments, while the
+  workspace has a seat free.
 
 ## [1.1.22] - 2026-11-02
 
