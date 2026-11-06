@@ -4,6 +4,11 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.24] - 2026-11-07
+
+### Changed
+- Code style for the current Moodle code checker. No change in behaviour.
+
 ## [1.1.23] - 2026-11-06
 
 ### Changed
