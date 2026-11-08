@@ -211,10 +211,11 @@ class client {
      *
      * @param string $sitekeynonce the one-time value LearnBoard returns with the site key
      * @param \stdClass|null $saver the Moodle administrator saving the code, or null
+     * @param bool $automatic true when the plugin registers again by itself after an upgrade
      * @return array{connected: bool, active: bool, reason: string} what LearnBoard reported,
      *     or reason set to a short code when the call itself failed
      */
-    public static function register_site(string $sitekeynonce = '', ?\stdClass $saver = null): array {
+    public static function register_site(string $sitekeynonce = '', ?\stdClass $saver = null, bool $automatic = false): array {
         global $CFG;
 
         $key = (string) get_config('block_learnboard', 'embedkey');
@@ -240,6 +241,11 @@ class client {
             // LearnBoard sends it back with this site's own key (1.1.21).
             'site_key_nonce' => $sitekeynonce,
         ];
+        if ($automatic) {
+            // The same site and code as before, re-registered to take this
+            // site's own query key (1.1.25): not a new connection.
+            $payload['automatic'] = true;
+        }
         if ($saver !== null && !empty($saver->id)) {
             $payload['user'] = [
                 'external_id' => (string) (int) $saver->id,

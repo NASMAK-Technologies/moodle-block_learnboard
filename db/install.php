@@ -57,13 +57,11 @@ function block_learnboard_apply_default_settings() {
         'tenant' => '',
         'insecuressl' => 0,
         'theme' => 'moodle',
-        'queryenabled' => 0,
         'querykey' => '',
         'queryallowedips' => '',
         'maxconcurrent' => '8',
         'querydbuser' => '',
         'querydbpass' => '',
-        'ssoenabled' => 0,
         'shownav' => 1,
     ];
     foreach ($defaults as $name => $value) {

@@ -101,12 +101,13 @@ the site administrator can see exactly what was asked and when.
 | Setting | What it does |
 | --- | --- |
 | Connection code | On *Connect to LearnBoard*. Paste the code LearnBoard shows under *Data sources* and press Save and connect. It carries the address and the shared secret, so there is nothing else to type. Everything below is on *LearnBoard advanced settings*. |
-| Allow LearnBoard to read data through the plugin | The master switch for the data connector. Off, and `query.php` answers nothing. |
 | LearnBoard server addresses | Optional. Restricts which IP addresses may ask at all. |
 | Requests to answer at once | How many LearnBoard queries this site will run concurrently. Lower it if the site is busy. |
-| Enable per-user sign-in (SSO) | Lets somebody already signed in to Moodle open LearnBoard without signing in again. |
 | Show LearnBoard in the main menu | Adds the LearnBoard page to Moodle's main menu (Moodle 4.3 and later). |
-| Allow self-signed SSL | For a development or on-premises install with its own certificate. A production site leaves this off. |
+| Theme | Light, dark, the system's choice, or Moodle's own look. |
+
+Reading data through the plugin and per-user sign-in are always on (1.1.25).
+Each site reads with a query key of its own, handed over when it registers.
 
 ## Using the block
 
@@ -126,14 +127,12 @@ the site administrator can see exactly what was asked and when.
 - **My team** shows a teacher or company manager only the people in their
   own groups, in the courses they lead, as Moodle's separate groups would.
 - **My learning** shows a learner their own progress.
-- Both read as the person viewing, so they need per-user sign-in.
-- Without per-user sign-in, workspace-wide charts are shown only to people
-  who may see LearnBoard across the whole site, never to a course teacher.
+- Both read as the person viewing.
 
 ## Privacy
 
 The plugin stores no personal data of its own. It sends the signed-in user's
-identity to LearnBoard when per-user sign-in is on, and answers LearnBoard's
+identity to LearnBoard, and answers LearnBoard's
 questions about the data already in the site, limited as described above. A
 viewer's browser loads the chart script and the figures from LearnBoard, so
 LearnBoard sees the viewer's IP address and browser, as any website does. See

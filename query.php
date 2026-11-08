@@ -29,7 +29,8 @@
  * X-LearnBoard-Timestamp  unix seconds, within 5 minutes of this server
  * X-LearnBoard-Nonce      32 hex characters, never reused
  * X-LearnBoard-Signature  hex HMAC-SHA256 of "timestamp\nnonce\nsha256(body)"
- * under the connector key set in the plugin settings
+ * under this site's own query key once it has one (required for queries),
+ * otherwise under the connector key from the connection code
  * Response: {"v":1,"server":{...},"results":[{"ok":true,"rows":[...]}|{"ok":false,...}]}
  * signed back in X-LearnBoard-Signature as HMAC-SHA256 of "nonce\nbody", so an
  * answer belongs to the one request it was sent for.
@@ -159,13 +160,26 @@ if (abs(time() - (int) $timestamp) > 300) {
     block_learnboard_query_respond(401, ['error' => 'stale_request']);
 }
 
-$enabled = $setting('queryenabled') === '1';
-$key = trim($setting('querykey'));
-$allowedips = guard::parse_list($setting('queryallowedips'));
-
+// Two keys can sign a request. The connector key comes in the connection
+// code and is the workspace's, so every Moodle site of the workspace holds it.
+// The site query key (1.1.25) is this site's alone: LearnBoard hands it over
+// while the site registers. Once this site holds one, a query must be signed
+// with it, so another site's administrator cannot read this database with the
+// workspace key. Reading data is always on since 1.1.25; a site with no key
+// at all still answers connector_disabled.
+$connectorkey = trim($setting('querykey'));
 // The key is 256 random bits made by LearnBoard. A short one was typed by
 // hand and is refused rather than trusted.
-if (!$enabled || strlen($key) < 32) {
+if (strlen($connectorkey) < 32) {
+    $connectorkey = '';
+}
+$sitequerykey = (string) (get_config('block_learnboard', 'sitequerykey') ?: '');
+if (!preg_match('/^[a-f0-9]{64}$/', $sitequerykey)) {
+    $sitequerykey = '';
+}
+$allowedips = guard::parse_list($setting('queryallowedips'));
+
+if ($connectorkey === '' && $sitequerykey === '') {
     block_learnboard_query_respond(403, ['error' => 'connector_disabled']);
 }
 
@@ -173,10 +187,18 @@ if ($allowedips !== [] && !guard::address_in_list($audit['ip'], $allowedips)) {
     block_learnboard_query_respond(403, ['error' => 'address_not_allowed']);
 }
 
-$expected = hash_hmac('sha256', $timestamp . "\n" . $nonce . "\n" . hash('sha256', $raw), $key);
-if (!hash_equals($expected, $signature)) {
+$signed = $timestamp . "\n" . $nonce . "\n" . hash('sha256', $raw);
+$key = '';
+foreach ([$sitequerykey, $connectorkey] as $candidate) {
+    if ($candidate !== '' && hash_equals(hash_hmac('sha256', $signed, $candidate), $signature)) {
+        $key = $candidate;
+        break;
+    }
+}
+if ($key === '') {
     block_learnboard_query_respond(401, ['error' => 'unauthenticated']);
 }
+$bysitekey = $sitequerykey !== '' && $key === $sitequerykey;
 
 // Replay guard: a nonce is a file in Moodle's temp directory for ten minutes,
 // so a captured request cannot be sent again. Old ones are swept as we go.
@@ -225,6 +247,7 @@ if (!is_array($request) || ($request['v'] ?? null) !== 1 || !in_array($request['
 // it, so a signature alone could come from another of those sites. The
 // hand-over is therefore taken only while this site is registering, with the
 // one-time value it sent LearnBoard (classes/query/sitekey.php), and once.
+// Since 1.1.25 it may carry this site's own query key too, taken the same way.
 if ($request['op'] === 'sitekey') {
     $audit['op'] = 'sitekey';
     $pending = (string) (get_config('block_learnboard', 'sitekeypending') ?: '');
@@ -233,7 +256,20 @@ if ($request['op'] === 'sitekey') {
     }
     unset_config('sitekeypending', 'block_learnboard');
     set_config('sitekey', (string) $request['key'], 'block_learnboard');
-    block_learnboard_query_respond(200, ['stored' => true], $key, $nonce);
+    $querykeystored = false;
+    if (\block_learnboard\query\sitekey::is_key($request['query_key'] ?? null)) {
+        set_config('sitequerykey', (string) $request['query_key'], 'block_learnboard');
+        $querykeystored = true;
+    }
+    block_learnboard_query_respond(200, ['stored' => true, 'query_key_stored' => $querykeystored], $key, $nonce);
+}
+
+// A query must carry this site's own key once it has one. Ping does not read
+// any rows and stays open to the connector key, so saving the code again
+// always repairs a site whose hand-over failed halfway.
+if ($request['op'] === 'query' && $sitequerykey !== '' && !$bysitekey) {
+    $audit['op'] = 'query';
+    block_learnboard_query_respond(403, ['error' => 'site_key_required'], $key, $nonce);
 }
 
 if ($request['op'] === 'query') {

@@ -50,6 +50,9 @@ $allowed = [
     ['SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE ?', ['moodle_lms', 'mdl_%']],
     ['SELECT id FROM mdl_user WHERE id IN (SELECT userid FROM mdl_role_assignments WHERE roleid = ?)', [5]],
     ['SELECT 1', []],
+    ['SELECT id, (timemodified - timecreated) * 2 AS span, grade * ? AS g FROM mdl_course', [3]],
+    ['SELECT SQL_NO_CACHE id, COUNT(*) AS n FROM mdl_course GROUP BY id', []],
+    ['SELECT id FROM mdl_course /* a plain comment */ WHERE id > ?', [1]],
 ];
 
 $attacks = [
@@ -136,6 +139,23 @@ $attacks = [
     ['SELECT id FROM mdl_course PARTITION (p0)', []],
     ['SELECT id FROM mdl_course c, otherdb.mdl_user u', []],
     ['SELECT l.id FROM mdl_logstore_standard_log l FORCE INDEX (ix) WHERE l.timecreated > ?', [1]],
+    // MariaDB runs the text of /*M! ... */ comments (security review, November 2026).
+    ['SELECT 1 /*M! , (SELECT password FROM mdl_user) */', []],
+    ['SELECT 1 /*M!100100 , (SELECT value FROM mdl_config) */', []],
+    ['/*M! SELECT secret FROM mdl_user */ SELECT 1', []],
+    ['SELECT 1 /*m! , (SELECT password FROM mdl_user) */', []],
+    // A credential column read under another name (security review, November 2026).
+    ['SELECT id, username FROM mdl_user WHERE 1 = 0 UNION SELECT SQL_NO_CACHE * FROM mdl_user', []],
+    ['SELECT HIGH_PRIORITY * FROM mdl_user', []],
+    ['SELECT DISTINCTROW * FROM mdl_user', []],
+    ['SELECT STRAIGHT_JOIN * FROM mdl_user', []],
+    ['SELECT x.id FROM (SELECT SQL_BUFFER_RESULT * FROM mdl_enrol) x', []],
+    ['SELECT enrolmentkey FROM mdl_groups', []],
+    ['SELECT g.enrolmentkey AS k FROM mdl_groups g', []],
+    ['SELECT x.k FROM (SELECT enrolmentkey AS k FROM mdl_groups) x', []],
+    ['SELECT servicesalt AS s FROM mdl_lti', []],
+    ['SELECT guestpassword AS g FROM mdl_bigbluebuttonbn', []],
+    ['SELECT id AS a FROM mdl_course UNION SELECT e.password FROM mdl_enrol e', []],
 ];
 
 $ipcases = [
@@ -152,6 +172,7 @@ $ipcases = [
 ];
 
 $columns = ['password' => true, 'PASSWORD' => true, 'clientsecret' => true, 'token' => true, 'sesskey' => true,
+    'enrolmentkey' => true, 'servicesalt' => true, 'guestpassword' => true,
     'username' => false, 'timecreated' => false, 'tokenised_name' => false, 'passgrade' => false];
 
 $transport = [

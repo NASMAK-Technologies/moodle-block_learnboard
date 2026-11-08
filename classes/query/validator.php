@@ -102,8 +102,40 @@ class validator {
     public const FORBIDDEN_IDENTIFIERS = [
         'password', 'passwordhash', 'secret', 'sesskey', 'salt', 'privatekey', 'private_key',
         'apikey', 'api_key', 'clientsecret', 'client_secret', 'consumersecret', 'consumer_secret', 'secretkey',
-        'token', 'confirmtoken', 'refreshtoken', 'datakey', 'moderatorpass', 'viewerpass', 'resourcekey',
+        'token', 'confirmtoken', 'refreshtoken', 'accesstoken', 'datakey', 'moderatorpass', 'viewerpass',
+        'resourcekey', 'servicesalt', 'enrolmentkey',
     ];
+
+    /** Parts of a name that mark it as a credential wherever they appear in it. */
+    public const FORBIDDEN_NAME_PARTS = [
+        'password', 'secret', 'sesskey', 'privatekey', 'private_key', 'apikey', 'api_key', 'enrolmentkey',
+    ];
+
+    /** Words after which a * is a projection, not a multiplication. */
+    public const STAR_PROJECTION_FOLLOWERS = [
+        'FROM', 'AS', 'INTO', 'FOR', 'LOCK', 'WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'WINDOW', 'UNION',
+        'EXCEPT', 'INTERSECT', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'CROSS', 'NATURAL', 'STRAIGHT_JOIN', 'ON', 'USING',
+    ];
+
+    /**
+     * Whether a column or alias name marks it as carrying a credential:
+     * a password hash, a secret, an enrolment key, a token. Used on the
+     * statement (any name it writes, alias included) and on the answer (each
+     * column it returns), so both lines hold the same list.
+     *
+     * @param string $name
+     * @return bool
+     */
+    public static function is_secret_name(string $name): bool {
+        $lower = strtolower($name);
+        foreach (self::FORBIDDEN_NAME_PARTS as $part) {
+            if (strpos($lower, $part) !== false) {
+                return true;
+            }
+        }
+
+        return in_array($lower, self::FORBIDDEN_IDENTIFIERS, true);
+    }
 
     /** The only information_schema views, and only for this database. */
     public const INFORMATION_SCHEMA_VIEWS = ['tables', 'columns', 'key_column_usage', 'statistics'];
@@ -143,8 +175,9 @@ class validator {
         if (strlen($trimmed) > 200000) {
             throw new refused('query too long');
         }
-        // MySQL executes /*! ... */ even though it looks like a comment.
-        if (strpos($trimmed, '/*!') !== false || strpos($trimmed, '/*+') !== false) {
+        // MySQL executes /*! ... */ and MariaDB /*M! ... */ even though they
+        // look like comments, and /*+ ... */ carries optimizer hints.
+        if (preg_match('#/\*(?:[!+]|[mM]!)#', $trimmed)) {
             throw new refused('executable comment is not allowed');
         }
         if (strpos($trimmed, "\0") !== false) {
@@ -177,10 +210,7 @@ class validator {
         $tokens = $this->tokenize($body);
 
         foreach ($tokens as $index => $token) {
-            if (
-                ($token['type'] === 'ident' || $token['type'] === 'quoted')
-                    && in_array(strtolower($token['value']), self::FORBIDDEN_IDENTIFIERS, true)
-            ) {
+            if (($token['type'] === 'ident' || $token['type'] === 'quoted') && self::is_secret_name($token['value'])) {
                 throw new refused("the {$token['value']} column is not readable");
             }
             if (
@@ -307,9 +337,10 @@ class validator {
     }
 
     /**
-     * Refuses SELECT * and t.*: a star returns columns the statement never
-     * names, which the column checks cannot see. COUNT(*) and multiplication
-     * are not projections and stay allowed.
+     * Refuses SELECT * and t.*, with or without a select modifier in front:
+     * a star returns columns the statement never names, which the column
+     * checks cannot see. COUNT(*) and multiplication are not projections and
+     * stay allowed.
      *
      * @param array $tokens
      * @throws refused
@@ -326,6 +357,23 @@ class validator {
             $before = strtoupper($prev['value']);
             $keyword = $prev['type'] === 'ident' && in_array($before, ['SELECT', 'DISTINCT', 'ALL'], true);
             if ($before === ',' || $before === '.' || $keyword) {
+                throw new refused('select named columns, not *');
+            }
+            // COUNT(*) is the one place a * may stand alone.
+            $next = $tokens[$i + 1] ?? null;
+            if ($before === '(' && ($next['value'] ?? '') === ')' && strtoupper($tokens[$i - 2]['value'] ?? '') === 'COUNT') {
+                continue;
+            }
+            // Anything else must be a multiplication, with a value on both
+            // sides. A * a select modifier stands in front of (SQL_NO_CACHE *,
+            // HIGH_PRIORITY *, DISTINCTROW *) is a projection, and through a
+            // UNION it hands back every column under the first query's names.
+            $operand = $next !== null && (
+                in_array($next['type'], ['number', 'quoted', 'string'], true)
+                || in_array($next['value'], ['(', '?', '-', '+', '~'], true)
+                || ($next['type'] === 'ident' && !in_array(strtoupper($next['value']), self::STAR_PROJECTION_FOLLOWERS, true))
+            );
+            if ($before === '(' || !$operand) {
                 throw new refused('select named columns, not *');
             }
         }

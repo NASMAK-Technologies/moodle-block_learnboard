@@ -109,9 +109,11 @@ class setting_connection_code extends \admin_setting_configtext {
         // A code for another LearnBoard or another workspace: the site key
         // belonged to the old one. For the same workspace it is kept until
         // LearnBoard hands over the new one, so a registration that fails
-        // midway leaves the site working as it was.
+        // midway leaves the site working as it was. The site's own query key
+        // (1.1.25) goes with it: kept, the old workspace could still read here.
         if ($decoded['api'] !== \block_learnboard\client::apibase() || $decoded['ws'] !== \block_learnboard\client::tenant()) {
             unset_config('sitekey', 'block_learnboard');
+            unset_config('sitequerykey', 'block_learnboard');
         }
 
         self::$applied = true;
@@ -119,30 +121,40 @@ class setting_connection_code extends \admin_setting_configtext {
         set_config('tenant', $decoded['ws'], 'block_learnboard');
         set_config('embedkey', $decoded['ek'], 'block_learnboard');
         set_config('querykey', $decoded['ck'], 'block_learnboard');
-        set_config('queryenabled', 1, 'block_learnboard');
-        // Per-user sign-in too, as the field promises ("charts, sign-in and
-        // reading data"). Left off, a fresh site gave every teacher, manager
-        // and learner "could not load" and only site managers one shared view.
-        // Each person now sees only their own groups; an admin can turn it off.
-        set_config('ssoenabled', 1, 'block_learnboard');
+        // Reading data and per-user sign-in are always on since 1.1.25.
 
-        // LearnBoard hands this site a new key through query.php while it
-        // registers, and only with the one-time value sent with the
-        // registration (classes/query/sitekey.php).
-        [$pending, $stored] = \block_learnboard\query\sitekey::pending(time());
-        set_config('sitekeypending', $stored, 'block_learnboard');
         // The administrator saving the code in the browser is, almost always,
         // the person who made it in LearnBoard: LearnBoard links the two
         // accounts once (1.1.23). Never from the command line or a session
         // "logged in as" somebody else.
         $saver = (!CLI_SCRIPT && isloggedin() && !isguestuser() && is_siteadmin($USER)
             && !\core\session\manager::is_loggedinas()) ? $USER : null;
-        $result = \block_learnboard\client::register_site($pending, $saver);
+        self::register($saver, false);
+
+        return '';
+    }
+
+    /**
+     * Register this site with LearnBoard using the code already saved.
+     *
+     * LearnBoard hands this site its keys through query.php while it
+     * registers, and only with the one-time value sent with the registration
+     * (classes/query/sitekey.php).
+     *
+     * @param \stdClass|null $saver the administrator saving the code, or null
+     * @param bool $automatic true when the plugin does it by itself after an
+     *     upgrade, so LearnBoard treats it as the same connection, not a new one
+     * @return array what LearnBoard reported
+     */
+    public static function register(?\stdClass $saver, bool $automatic): array {
+        [$pending, $stored] = \block_learnboard\query\sitekey::pending(time());
+        set_config('sitekeypending', $stored, 'block_learnboard');
+        $result = \block_learnboard\client::register_site($pending, $saver, $automatic);
         unset_config('sitekeypending', 'block_learnboard');
         set_config('lastconnection', json_encode($result + ['time' => time()]), 'block_learnboard');
         connection_status::forget();
 
-        return '';
+        return $result;
     }
 
     /**

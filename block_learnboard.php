@@ -346,16 +346,6 @@ class block_learnboard extends block_base {
             return $this->content;
         }
 
-        // A personal view without per-user sign-in would read as the shared
-        // account, which has no team and no learning record of its own.
-        if ($personal && !\block_learnboard\ssouser::enabled()) {
-            $this->content->text = $authoring
-                ? html_writer::div(get_string('personalneedssso', 'block_learnboard'), 'learnboard-embed-notice')
-                : '';
-
-            return $this->content;
-        }
-
         // Custom block with nothing to show and the viewer can't author →
         // educational empty state.
         if (!$linked && !$personal && empty($layout['items']) && !$authoring) {

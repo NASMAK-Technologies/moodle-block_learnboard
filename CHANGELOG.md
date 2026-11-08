@@ -4,6 +4,32 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.25] - 2026-11-08
+
+### Security
+- Each Moodle site now reads with a query key of its own. LearnBoard hands
+  it over while the site registers, and once a site holds one, the data
+  connector answers queries only when they are signed with it. The admin of
+  another Moodle site connected to the same workspace can no longer read
+  this site's data with the workspace's connector key. A connected site
+  takes its key by itself on the first cron run after the upgrade; until
+  then it keeps working as before. Saving the connection code again does
+  the same thing by hand.
+- The query check refuses MariaDB executable comments (`/*M! ... */`), as
+  it already refused MySQL's `/*! ... */` and `/*+ ... */`.
+- Credential columns stay out of the answer even when a query renames them.
+  A `*` with a select modifier in front (`SQL_NO_CACHE *`, `HIGH_PRIORITY *`)
+  is refused like any other `*`, and the column checks now also cover
+  enrolment keys, LTI service salts and every name containing "password" or
+  "secret", in the statement and in the answer.
+
+### Changed
+- The settings page no longer shows the LearnBoard API base URL or "Allow
+  self-signed SSL". The connection code fills in the first, and the second
+  is for development installs. Stored values keep working.
+- Reading data through the plugin and per-user sign-in are always on, so
+  their switches are gone. Theme and role mapping stay.
+
 ## [1.1.24] - 2026-11-07
 
 ### Changed

@@ -53,10 +53,12 @@ class ssouser {
     ];
 
     /**
-     * Whether per-user SSO is switched on in the plugin settings.
+     * Whether per-user sign-in is on. Always, since 1.1.25: the switch was
+     * removed (owner decision, 8 Nov 2026); with it off, teachers, managers
+     * and learners saw "could not load" or one shared view.
      */
     public static function enabled(): bool {
-        return (int) get_config('block_learnboard', 'ssoenabled') === 1;
+        return true;
     }
 
     /**

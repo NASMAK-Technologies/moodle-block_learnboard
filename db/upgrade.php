@@ -39,5 +39,16 @@ function xmldb_block_learnboard_upgrade($oldversion) {
         upgrade_block_savepoint(true, 2026092500, 'learnboard', false);
     }
 
+    if ($oldversion < 2026110800) {
+        // 1.1.25: each site reads with a query key of its own. A connected
+        // site registers again once, on the next cron run, to take it, so
+        // nobody has to save the connection code again. Until then it keeps
+        // working on the workspace's connector key.
+        if (\block_learnboard\task\register_site_key::needed()) {
+            \core\task\manager::queue_adhoc_task(new \block_learnboard\task\register_site_key(), true);
+        }
+        upgrade_block_savepoint(true, 2026110800, 'learnboard', false);
+    }
+
     return true;
 }

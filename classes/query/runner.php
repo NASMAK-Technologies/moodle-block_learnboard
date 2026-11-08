@@ -239,15 +239,7 @@ class runner {
      * @return bool
      */
     public static function is_secret_column(string $column): bool {
-        $name = strtolower($column);
-        foreach (['password', 'secret', 'sesskey', 'privatekey', 'private_key', 'apikey', 'api_key'] as $part) {
-            if (strpos($name, $part) !== false) {
-                return true;
-            }
-        }
-
-        return in_array($name, ['salt', 'token', 'confirmtoken', 'refreshtoken', 'accesstoken', 'datakey',
-            'moderatorpass', 'viewerpass', 'resourcekey'], true);
+        return validator::is_secret_name($column);
     }
 
     /**

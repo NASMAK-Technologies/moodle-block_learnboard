@@ -56,14 +56,11 @@ if ($ADMIN->fulltree) {
         get_string('connheading_desc', 'block_learnboard')
     ));
 
-    // Absolute LearnBoard API base, e.g. https://learnboard.example.com/api/v1.
-    $settings->add(new \block_learnboard\admin\setting_guarded_configtext(
-        'block_learnboard/apibase',
-        get_string('apibase', 'block_learnboard'),
-        get_string('apibase_desc', 'block_learnboard'),
-        'https://learnboard.learnoow.com/api/v1',
-        PARAM_URL
-    ));
+    // The LearnBoard API base and "Allow self-signed SSL" are no longer shown
+    // (owner decision, 8 Nov 2026): the connection code fills in the first,
+    // and the second is for development installs only. Both stored values
+    // still work, and config.php can still force them. Reading data and
+    // per-user sign-in are always on, so their switches are gone too.
 
     // Shared secret (X-Embed-Key) — never exposed to the browser.
     $settings->add(new \block_learnboard\admin\setting_guarded_configpasswordunmask(
@@ -81,22 +78,6 @@ if ($ADMIN->fulltree) {
         '',
         PARAM_TEXT
     ));
-
-    $settings->add(new admin_setting_configcheckbox(
-        'block_learnboard/insecuressl',
-        get_string('insecuressl', 'block_learnboard'),
-        get_string('insecuressl_desc', 'block_learnboard'),
-        0
-    ));
-    // Certificate checks off is for a development or on-premises install only.
-    // Said in plain sight while it is on, so it is not left on in production.
-    if ((int) get_config('block_learnboard', 'insecuressl') === 1) {
-        $settings->add(new admin_setting_heading(
-            'block_learnboard/insecuresslwarning',
-            '',
-            $OUTPUT->notification(get_string('insecuressl_warning', 'block_learnboard'), 'warning')
-        ));
-    }
 
     $settings->add(new admin_setting_configselect(
         'block_learnboard/theme',
@@ -117,13 +98,6 @@ if ($ADMIN->fulltree) {
         'block_learnboard/queryheading',
         get_string('queryheading', 'block_learnboard'),
         get_string('queryheading_desc', 'block_learnboard', (new moodle_url('/blocks/learnboard/query.php'))->out(false))
-    ));
-
-    $settings->add(new \block_learnboard\admin\setting_guarded_configcheckbox(
-        'block_learnboard/queryenabled',
-        get_string('queryenabled', 'block_learnboard'),
-        get_string('queryenabled_desc', 'block_learnboard'),
-        0
     ));
 
     $settings->add(new \block_learnboard\admin\setting_guarded_configpasswordunmask(
@@ -162,16 +136,6 @@ if ($ADMIN->fulltree) {
         get_string('querydbpass', 'block_learnboard'),
         get_string('querydbpass_desc', 'block_learnboard'),
         ''
-    ));
-
-    // Per-user SSO (#1): when on, charts render AS the logged-in user
-    // (role-aware) and staff get a one-click "Open LearnBoard" full-app sign-in.
-    // When off, everything renders as the shared read-only tenant reader.
-    $settings->add(new \block_learnboard\admin\setting_guarded_configcheckbox(
-        'block_learnboard/ssoenabled',
-        get_string('ssoenabled', 'block_learnboard'),
-        get_string('ssoenabled_desc', 'block_learnboard'),
-        0
     ));
 
     $settings->add(new admin_setting_configcheckbox(

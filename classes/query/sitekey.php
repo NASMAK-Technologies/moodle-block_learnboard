@@ -57,6 +57,16 @@ class sitekey {
     }
 
     /**
+     * Whether a value has the shape of a key LearnBoard makes: 256 bits, hex.
+     *
+     * @param mixed $value
+     * @return bool
+     */
+    public static function is_key($value): bool {
+        return is_string($value) && preg_match('/^[a-f0-9]{64}$/', $value) === 1;
+    }
+
+    /**
      * Whether a hand-over may be accepted.
      *
      * @param string $stored the stored JSON, or '' when nothing is pending
@@ -66,7 +76,7 @@ class sitekey {
      * @return bool
      */
     public static function accept(string $stored, $nonce, $key, int $now): bool {
-        if (!is_string($key) || !preg_match('/^[a-f0-9]{64}$/', $key)) {
+        if (!self::is_key($key)) {
             return false;
         }
         if (!is_string($nonce) || !preg_match('/^[a-f0-9]{64}$/', $nonce)) {
