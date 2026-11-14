@@ -4,6 +4,19 @@ All notable changes to LearnBoard for Moodle (block_learnboard).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the version numbers follow [Semantic Versioning](https://semver.org).
 
+## [1.1.26] - 2026-11-14
+
+### Fixed
+- SCORM progress now shows on Moodle 4.3 and later, Moodle 5.2.4
+  included. Moodle 4.3 moved SCORM tracking into new tables
+  (`scorm_attempt`, `scorm_scoes_value`, `scorm_element`), and the data
+  connector did not yet allow them, so LearnBoard read no SCORM activity
+  from these sites. The connector still refuses every table outside its
+  list.
+
+### Compatibility
+- Tested on Moodle 4.0 to 5.3, including 5.2.4.
+
 ## [1.1.25] - 2026-11-08
 
 ### Security
